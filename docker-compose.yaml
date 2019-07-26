@@ -1,0 +1,12 @@
+version: '3.7'
+
+services:
+  bot:
+    build:
+      context: .
+      target: server
+      args:
+        project_path: "github.com/mitinarseny/telego"
+        path: "cmd"
+    environment:
+      TELEGO_BOT_TOKEN: "<your_token_here>"
