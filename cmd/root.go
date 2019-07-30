@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	BotToken string
+	botToken string
 )
 
 var rootCmd = &cobra.Command{
@@ -22,7 +22,7 @@ var rootCmd = &cobra.Command{
 }
 
 func start() {
-	if err := bot.Start(BotToken); err != nil {
+	if err := bot.Start(botToken); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -37,7 +37,7 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVarP(&BotToken, "bot.token", "t", "", "Telegram Bot API token. You can get it from https://t.me/BotFather")
+	rootCmd.PersistentFlags().StringVarP(&botToken, "bot.token", "t", "", "Telegram Bot API token. You can get it from https://t.me/BotFather")
 }
 
 func initConfig() {

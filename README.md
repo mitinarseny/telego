@@ -29,3 +29,16 @@
   ```bash
   docker-compose up -d
   ```
+
+## Debug
+To enter debug mode inside the container:
+### Build
+```bash
+export _project_path=github.com/mitinarseny/telego
+export _path=.
+docker build -t telego_bot --target debugger --build-arg _project_path --build-arg _path . 
+```
+### Run
+```bash
+docker run --rm --network telego -e TELEGO_BOT_TOKEN="your_token_here" -p 40000:40000 --cap-add SYS_PTRACE telego_bot
+``` 

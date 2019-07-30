@@ -1,12 +1,17 @@
 version: '3.7'
 
+networks:
+  telego:
+
 services:
   bot:
     build:
       context: .
       target: server
       args:
-        project_path: "github.com/mitinarseny/telego"
-        path: "."
+        _project_path: "github.com/mitinarseny/telego"
+        _path: "."
     environment:
       TELEGO_BOT_TOKEN: "<your_token_here>"
+    networks:
+      - telego

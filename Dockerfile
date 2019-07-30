@@ -9,8 +9,8 @@ RUN apk update \
     && go get -u \
         github.com/derekparker/delve/cmd/dlv
 
-ARG project_path=github.com/mitinarseny/telego
-WORKDIR ${GOPATH}/src/${project_path}
+ARG _project_path=github.com/mitinarseny/telego
+WORKDIR ${GOPATH}/src/${_project_path}
 
 ENV GO111MODULE=on
 COPY go.mod go.sum ./
@@ -21,8 +21,8 @@ FROM build-env AS builder
 
 COPY . .
 
-ARG path=.
-WORKDIR ${path}
+ARG _path=.
+WORKDIR ${_path}
 
 ARG _build_path
 RUN CGO_ENABLED=0 GOOS=linux go build -gcflags "all=-N -l" -o ${_build_path} .
