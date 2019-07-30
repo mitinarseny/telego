@@ -14,31 +14,33 @@
 
 ## Table of Contents
 * [Usage](#usage)
+* [Debug](#debug)
 
 ## Usage
-* Create new bot with [@BotFather](https://t.me/BotFather) and copy the token (example: `12345689:ABCdEFgHi1JKLMNO23P45rSTU6vw78xyz-a`)
-* Create file `./docker-compose.secret.yaml` with the following structure and paste your token there:
-  ```yaml
-  version: '3.7'
-  services:
-    bot:
-      environment:
-        TELEGO_BOT_TOKEN: "<your_token_here>"
-  ```
-* Run services:
-  ```bash
-  docker-compose -f docker-compose.yaml -f docker-compose.secret.yaml up --build -d
-  ```
-
-## Debug
-To enter debug mode inside the container:
-### Build
-```bash
-export _project_path=github.com/mitinarseny/telego
-export _path=.
-docker build -t telego_bot --target debugger --build-arg _project_path --build-arg _path . 
+### Create Bot
+Create new bot with [@BotFather](https://t.me/BotFather) and copy the token (example: `12345689:ABCdEFgHi1JKLMNO23P45rSTU6vw78xyz-a`)
+### Set token
+Create file `./docker-compose.secret.yaml` with the following structure and paste your token there:
+```yaml
+version: '3.7'
+services:
+bot:
+  environment:
+    TELEGO_BOT_TOKEN: "<your_token_here>"
 ```
 ### Run
 ```bash
-docker run --rm --network telego -e TELEGO_BOT_TOKEN="your_token_here" -p 40000:40000 --cap-add SYS_PTRACE telego_bot
+docker-compose -f docker-compose.yaml -f docker-compose.secret.yaml up --build -d
+```
+
+## Debug
+You can debug your code with [Delve](https://github.com/go-delve/delve) debugger. 
+### Build & Run
+To enable [dlv](https://github.com/go-delve/delve) debugger inside the container run:
+```bash
+docker-compose -f docker-compose.yaml -f docker-compose.dev.yaml -f docker-compose.secret.yaml up --build -d
 ``` 
+### Attach
+```bash
+${GOPATH}/bin/dlv connect localhost:40000
+```
