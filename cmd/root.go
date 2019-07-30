@@ -22,7 +22,7 @@ var rootCmd = &cobra.Command{
 }
 
 func start() {
-	if err := bot.Start(botToken); err != nil {
+	if err := bot.Start(viper.GetString("bot.token")); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -37,7 +37,8 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVarP(&botToken, "bot.token", "t", "", "Telegram Bot API token. You can get it from https://t.me/BotFather")
+	rootCmd.PersistentFlags().String("bot.token", "", "Telegram Bot API token. You can get it from https://t.me/BotFather")
+	_ = viper.BindPFlag("bot.token", rootCmd.PersistentFlags().Lookup("bot.token"))
 }
 
 func initConfig() {

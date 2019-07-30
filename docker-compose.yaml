@@ -11,7 +11,5 @@ services:
       args:
         _project_path: "github.com/mitinarseny/telego"
         _path: "."
-    environment:
-      TELEGO_BOT_TOKEN: "<your_token_here>"
     networks:
       - telego

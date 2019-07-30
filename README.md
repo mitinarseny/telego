@@ -1,6 +1,6 @@
 <p align="center">
     <a href="https://github.com/mitinarseny/telego">
-        <img src="assets/logo.png" alt="telego logo" width="20%" />
+        <img src="_assets/logo.png" alt="telego logo" width="20%" />
     </a>
     <h1 align="center">telego</h1>
     <p align="center">Go Template for Telegram Bot</p>
@@ -17,17 +17,17 @@
 
 ## Usage
 * Create new bot with [@BotFather](https://t.me/BotFather) and copy the token (example: `12345689:ABCdEFgHi1JKLMNO23P45rSTU6vw78xyz-a`)
-* Paste copied token in [docker-compose.yaml](./docker-compose.yaml):
+* Create file `./docker-compose.secret.yaml` with the following structure and paste your token there:
   ```yaml
+  version: '3.7'
   services:
     bot:
-      # ...
       environment:
         TELEGO_BOT_TOKEN: "<your_token_here>"
   ```
 * Run services:
   ```bash
-  docker-compose up -d
+  docker-compose -f docker-compose.yaml -f docker-compose.secret.yaml up --build -d
   ```
 
 ## Debug

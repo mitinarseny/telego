@@ -14,10 +14,12 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) error {
 		switch {
 		case update.Message.Command() == "hello":
 			return handlers.HandleHello(bot, update)
+		default:
+			return handlers.HandleUnsupported(bot, update)
 		}
-
+	default:
+		return handlers.HandleUnsupported(bot, update)
 	}
-	return nil
 }
 
 func Start(token string) error {
