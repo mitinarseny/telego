@@ -7,6 +7,6 @@ services:
       target: server
       args:
         project_path: "github.com/mitinarseny/telego"
-        path: "cmd"
+        path: "."
     environment:
       TELEGO_BOT_TOKEN: "<your_token_here>"

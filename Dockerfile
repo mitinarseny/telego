@@ -12,8 +12,8 @@ RUN apk update \
 ARG project_path=github.com/mitinarseny/telego
 WORKDIR ${GOPATH}/src/${project_path}
 
+ENV GO111MODULE=on
 COPY go.mod go.sum ./
-
 RUN go mod download
 
 
@@ -21,7 +21,7 @@ FROM build-env AS builder
 
 COPY . .
 
-ARG path
+ARG path=.
 WORKDIR ${path}
 
 ARG _build_path
