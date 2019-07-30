@@ -5,9 +5,6 @@ addons:
     packages:
       - docker-ce
 
-services:
-  - docker
-
 script:
   - docker --version
   - docker-compose up --build --exit-code-from bot --abort-on-container-exit
