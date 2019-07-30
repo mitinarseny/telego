@@ -1,6 +1,6 @@
 <p align="center">
     <a href="https://github.com/mitinarseny/telego">
-        <img src="assets/logo.png" alt="telego logo" width="30%" />
+        <img src="assets/logo.png" alt="telego logo" width="20%" />
     </a>
     <h1 align="center">telego</h1>
     <p align="center">Go Template for Telegram Bot</p>
