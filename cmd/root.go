@@ -1,17 +1,12 @@
 package cmd
 
 import (
-    "fmt"
-    "os"
     "strings"
 
     "github.com/mitinarseny/telego/bot"
+    log "github.com/sirupsen/logrus"
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
-)
-
-var (
-    botToken string
 )
 
 var rootCmd = &cobra.Command{
@@ -26,15 +21,13 @@ func start() {
         viper.GetString("notifier.bot.token"),
         viper.GetInt64("notifier.chat.id"),
         true); err != nil {
-        fmt.Println(err)
-        os.Exit(1)
+        log.Fatal(err)
     }
 }
 
 func Execute() {
     if err := rootCmd.Execute(); err != nil {
-        fmt.Println(err)
-        os.Exit(1)
+        log.Fatal(err)
     }
 }
 
@@ -65,7 +58,6 @@ func checkMandatoryParams() {
     }
 
     if len(missing) > 0 {
-        fmt.Printf("missing: %s", strings.Join(missing, ", "))
-        os.Exit(1)
+        log.Fatal("missing: %s", strings.Join(missing, ", "))
     }
 }

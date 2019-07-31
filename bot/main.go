@@ -2,10 +2,12 @@ package bot
 
 import (
     "context"
-    "log"
     "os"
     "os/signal"
     "sync"
+    "syscall"
+
+    log "github.com/sirupsen/logrus"
 
     "github.com/go-telegram-bot-api/telegram-bot-api"
     "github.com/mitinarseny/telego/bot/handlers"
@@ -42,7 +44,7 @@ func Run(token, notifierToken string, notifyChatID int64, debug bool) error {
         return err
     }
     botAPI.Debug = debug
-    log.Printf("Authorized on account: @%s", botAPI.Self.UserName)
+    log.WithField("bot", botAPI.Self.UserName).Info("Authorized")
 
     ctx, cancelFunc := context.WithCancel(context.Background())
     defer cancelFunc()
@@ -52,7 +54,7 @@ func Run(token, notifierToken string, notifyChatID int64, debug bool) error {
         if err != nil {
             return err
         }
-        log.Printf("Notifier: @%s", notifier.Self.UserName)
+        log.WithField("notifier", notifier.Self.UserName).Info()
         _ = notifyUp(notifier, notifyChatID, botAPI.Self.UserName)
         defer notifyDown(notifier, notifyChatID, botAPI.Self.UserName)
     }
@@ -93,7 +95,7 @@ func waitForSigOrError(ctx context.Context, errChs ...<-chan error) error {
 
 func getSignalErrorCh(ctx context.Context) <-chan error {
     sigCh := make(chan os.Signal, 1)
-    signal.Notify(sigCh, os.Interrupt, os.Kill)
+    signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 
     sigErrCh := make(chan error, 1)
     go func() {

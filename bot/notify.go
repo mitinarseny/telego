@@ -2,7 +2,8 @@ package bot
 
 import (
     "fmt"
-    "log"
+
+    log "github.com/sirupsen/logrus"
 
     "github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -18,7 +19,7 @@ func notify(bot *tgbotapi.BotAPI, chatID int64, text string) error {
 
     _, err := bot.Send(msg)
     if err != nil {
-        log.Printf("Failed to notify with @%s", escMd(bot.Self.UserName))
+        log.WithField("notifier", bot.Self.UserName).Warn("Failed to notify")
     }
     return err
 }
