@@ -6,7 +6,7 @@ addons:
       - docker-ce
 
 script:
-  - docker-compose up --build --exit-code-from bot --abort-on-container-exit
+  - docker-compose build bot
 
 notifications:
   webhooks:

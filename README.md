@@ -28,6 +28,7 @@ services:
     environment:
       TELEGO_BOT_TOKEN: "<token>"
       TELEGO_NOTIFIER_BOT_TOKEN: "<token>"
+      TELEGO_NOTIFIER_CHAT_ID: "<chat_id>"
 ```
 ### Run
 ```bash
