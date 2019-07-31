@@ -4,10 +4,10 @@ import (
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-func HandleHello(bot *tgbotapi.BotAPI, update tgbotapi.Update) error {
+func (b *Bot) HandleHello(update tgbotapi.Update) error {
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
 	msg.ReplyToMessageID = update.Message.MessageID
 
-	_, err := bot.Send(msg)
+	_, err := b.Send(msg)
 	return err
 }

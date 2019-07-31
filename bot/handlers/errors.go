@@ -8,11 +8,11 @@ const (
 	unsupportedAnswer = "I was not expecting to get such a message. Please, try again."
 )
 
-func HandleUnsupported(bot *tgbotapi.BotAPI, update tgbotapi.Update) error {
+func (b *Bot) HandleUnsupported(update tgbotapi.Update) error {
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, unsupportedAnswer)
 	msg.ParseMode = tgbotapi.ModeMarkdown
 	msg.ReplyToMessageID = update.Message.MessageID
 
-	_, err := bot.Send(msg)
+	_, err := b.Send(msg)
 	return err
 }

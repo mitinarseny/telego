@@ -11,55 +11,38 @@ import (
 	"github.com/mitinarseny/telego/bot/handlers"
 )
 
-func startHandlingUpdates(ctx context.Context, bot *tgbotapi.BotAPI) (<-chan error, error) {
+func startHandlingUpdates(ctx context.Context, botAPI *tgbotapi.BotAPI) (<-chan error, error) {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
-	updates, err := bot.GetUpdatesChan(u)
+	updates, err := botAPI.GetUpdatesChan(u)
 	if err != nil {
 		return nil, err
 	}
-
 	errCh := make(chan error)
+	defer close(errCh)
+
 	go func() {
-		defer close(errCh)
-		for update := range updates {
+		bot := handlers.Bot{
+			BotAPI: botAPI,
+		}
+		if err := bot.HandleUpdates(updates, errCh); err != nil {
 			select {
+			case errCh <- err:
 			case <-ctx.Done():
-				return
-			default:
 			}
-			go func() {
-				switch {
-				case update.Message != nil:
-					switch {
-					case update.Message.Command() == "hello":
-						if err := handlers.HandleHello(bot, update); err != nil {
-							errCh <- err
-						}
-					default:
-						if err := handlers.HandleUnsupported(bot, update); err != nil {
-							errCh <- err
-						}
-					}
-				default:
-					if err := handlers.HandleUnsupported(bot, update); err != nil {
-						errCh <- err
-					}
-				}
-			}()
 		}
 	}()
 	return errCh, nil
 }
 
 func Run(token, notifierToken string, notifyChatID int64, debug bool) error {
-	bot, err := tgbotapi.NewBotAPI(token)
+	botAPI, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		return err
 	}
-	bot.Debug = debug
-	log.Printf("Authorized on account: @%s", bot.Self.UserName)
+	botAPI.Debug = debug
+	log.Printf("Authorized on account: @%s", botAPI.Self.UserName)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -70,13 +53,13 @@ func Run(token, notifierToken string, notifyChatID int64, debug bool) error {
 			return err
 		}
 		log.Printf("Notifier: @%s", notifier.Self.UserName)
-		_ = notifyUp(notifier, notifyChatID, bot.Self.UserName)
-		defer notifyDown(notifier, notifyChatID, bot.Self.UserName)
+		_ = notifyUp(notifier, notifyChatID, botAPI.Self.UserName)
+		defer notifyDown(notifier, notifyChatID, botAPI.Self.UserName)
 	}
 
 	sigErrCh := getSignalErrorCh(ctx)
 
-	updErrCh, err := startHandlingUpdates(ctx, bot)
+	updErrCh, err := startHandlingUpdates(ctx, botAPI)
 	if err != nil {
 		return err
 	}
