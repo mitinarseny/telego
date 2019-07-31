@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/mitinarseny/telego/cmd"
+    "github.com/mitinarseny/telego/cmd"
 )
 
 func main(){
-	cmd.Execute()
+    cmd.Execute()
 }
