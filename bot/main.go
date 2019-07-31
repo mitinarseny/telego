@@ -7,6 +7,10 @@ import (
 	"github.com/mitinarseny/telego/bot/handlers"
 )
 
+const (
+	notifyParseMode = "Markdown"
+)
+
 func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) error {
 	// main logic here
 	switch {
@@ -22,15 +26,25 @@ func handleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) error {
 	}
 }
 
-func Start(token string) error {
+func Run(token, notifierToken string, notifyChatID int64, debug bool) error {
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		return err
 	}
-
-	bot.Debug = true
-
+	bot.Debug = debug
 	log.Printf("Authorized on account: @%s", bot.Self.UserName)
+
+	if notifierToken != "" {
+		notifier, err := tgbotapi.NewBotAPI(notifierToken)
+		if err != nil {
+			return err
+		}
+		log.Printf("Notifier: @%s", notifier.Self.UserName)
+		defer func() {
+			_ = notify(notifier, notifyChatID, botStatusText(bot.Self.UserName, "down ❗️"))
+		}()
+		_ = notify(notifier, notifyChatID, botStatusText(bot.Self.UserName, "up ❇️"))
+	}
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60

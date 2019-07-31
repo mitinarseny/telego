@@ -11,5 +11,6 @@ services:
       args:
         _project_path: "github.com/mitinarseny/telego"
         _path: "."
+    restart: on-failure
     networks:
       - telego

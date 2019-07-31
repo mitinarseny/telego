@@ -22,7 +22,10 @@ var rootCmd = &cobra.Command{
 }
 
 func start() {
-	if err := bot.Start(viper.GetString("bot.token")); err != nil {
+	if err := bot.Run(viper.GetString("bot.token"),
+		viper.GetString("notifier.bot.token"),
+		viper.GetInt64("notifier.chat.id"),
+		true); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -37,8 +40,15 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().String("bot.token", "", "Telegram Bot API token. You can get it from https://t.me/BotFather")
+
+	rootCmd.PersistentFlags().String("bot.token", "", "Telegram Bot API token")
 	_ = viper.BindPFlag("bot.token", rootCmd.PersistentFlags().Lookup("bot.token"))
+
+	rootCmd.PersistentFlags().String("notifier.bot.token", "", "Notifier Telegram Bot API token")
+	_ = viper.BindPFlag("notifier.bot.token", rootCmd.PersistentFlags().Lookup("notifier.bot.token"))
+
+	rootCmd.PersistentFlags().Int64("notifier.chat.id", -1, "Notifier Chat ID")
+	_ = viper.BindPFlag("notifier.chat.id", rootCmd.PersistentFlags().Lookup("notifier.chat.id"))
 }
 
 func initConfig() {

@@ -40,7 +40,6 @@ COPY --from=builder ${_build_path} /bin/
 
 FROM base_runner AS server
 
-EXPOSE 8585
 ENTRYPOINT ["/bin/bot"]
 
 
@@ -48,6 +47,6 @@ FROM base_runner AS debugger
 
 COPY --from=build-env  /go/bin/dlv /bin/
 
-EXPOSE 8585 40000
+EXPOSE 40000
 
-CMD ["/bin/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/bin/bot"]
+ENTRYPOINT ["/bin/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/bin/bot"]

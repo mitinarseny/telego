@@ -17,16 +17,17 @@
 * [Debug](#debug)
 
 ## Usage
-### Create Bot
+### Create Bots
 Create new bot with [@BotFather](https://t.me/BotFather) and copy the token (example: `12345689:ABCdEFgHi1JKLMNO23P45rSTU6vw78xyz-a`)
 ### Set token
 Create file `./docker-compose.secret.yaml` with the following structure and paste your token there:
 ```yaml
 version: '3.7'
 services:
-bot:
-  environment:
-    TELEGO_BOT_TOKEN: "<your_token_here>"
+  bot:
+    environment:
+      TELEGO_BOT_TOKEN: "<token>"
+      TELEGO_NOTIFIER_BOT_TOKEN: "<token>"
 ```
 ### Run
 ```bash

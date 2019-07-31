@@ -6,7 +6,6 @@ addons:
       - docker-ce
 
 script:
-  - docker --version
   - docker-compose up --build --exit-code-from bot --abort-on-container-exit
 
 notifications:
