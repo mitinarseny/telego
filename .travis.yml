@@ -1,5 +1,7 @@
 os: linux
 
+language: minimal
+
 addons:
   apt:
     packages:
