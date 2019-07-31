@@ -14,12 +14,21 @@
 
 ## Table of Contents
 * [Usage](#usage)
+  * [Create Bot](#create-bot)
+  * [Copy Token](#copy-token)
+    * [Notifier](#notifier)
+  * [Code](#code)
+    * [Logic](#logic)
+    * [Handlers](#handlers)
+  * [Run](#run)
 * [Debug](#debug)
+  * [Build & Run](#build--run)
+  * [Attach](#attach)
 
 ## Usage
 ### Create Bot
 Create new bot with [@BotFather](https://t.me/BotFather).
-### Copy token
+### Copy Token
 Create file `./docker-compose.secret.yaml` with the following structure and paste the token from [@BotFather](https://t.me/BotFather):
 ```yaml
 # ./docker-compose.secret.yaml
@@ -39,7 +48,40 @@ environment:
   TELEGO_NOTIFIER_BOT_TOKEN: "<token>"
   TELEGO_NOTIFIER_CHAT_ID: "<chat_id>"
 ```
+### Code
+#### Logic
+Main logic of the bot should be implemented inside `HandleUpdates` method of `Bot` in [`bot/handlers/core.go`](bot/handlers/core.go):
+```go
+func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel, errCh chan <- error) error {
+    for update := range updates {
+        go func() {
+            switch {
+            case update.Message != nil:
+                switch {
+                case update.Message.Command() == "hello":
+                    if err := b.HandleHello(update); err != nil {
+                        errCh <- err
+                    }
+                }
+            }
+        }()
+    }
+    return nil
+}
+```
+Take a look at more complex example in [`bot/handlers/core.go`](bot/handlers/core.go).
+#### Handlers
+All hanlders should be placed in [`bot/handlers/`](bot/handlers). Here is an example from [`hello.go`](bot/handlers/hello.go):
+```go
+func (b *Bot) HandleHello(update tgbotapi.Update) error {
+    msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
+    msg.ReplyToMessageID = update.Message.MessageID
 
+    _, err := b.Send(msg)
+    return err
+}
+
+```
 ### Run
 ```bash
 docker-compose \
