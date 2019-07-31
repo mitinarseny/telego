@@ -1,6 +1,4 @@
-ARG _build_path=/bin/bot
-
-FROM golang:1.12.6-alpine3.10 AS build-env
+FROM golang:1.12.7-alpine AS build-env
 
 RUN apk update \
     && apk upgrade \
@@ -21,29 +19,21 @@ FROM build-env AS builder
 
 COPY . .
 
-ARG _path=.
-WORKDIR ${_path}
-
-ARG _build_path
-RUN CGO_ENABLED=0 GOOS=linux go build -gcflags "all=-N -l" -o ${_build_path} .
+RUN CGO_ENABLED=0 GOOS=linux go build -gcflags "all=-N -l" -o /bin/bot .
 
 
-FROM alpine:latest AS base_runner
+FROM alpine:latest AS server
 
 RUN apk add --no-cache \
     ca-certificates \
     libc6-compat
 
-ARG _build_path
-COPY --from=builder ${_build_path} /bin/
-
-
-FROM base_runner AS server
+COPY --from=builder /bin/bot /bin/
 
 ENTRYPOINT ["/bin/bot"]
 
 
-FROM base_runner AS debugger
+FROM server AS debugger
 
 COPY --from=build-env  /go/bin/dlv /bin/
 

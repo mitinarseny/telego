@@ -32,7 +32,10 @@ services:
 ```
 ### Run
 ```bash
-docker-compose -f docker-compose.yaml -f docker-compose.secret.yaml up --build -d
+docker-compose \
+  -f docker-compose.yaml \
+  -f docker-compose.secret.yaml \
+  up --build -d
 ```
 
 ## Debug
@@ -40,7 +43,11 @@ You can debug your code with [Delve](https://github.com/go-delve/delve) debugger
 ### Build & Run
 To enable [dlv](https://github.com/go-delve/delve) debugger inside the container run:
 ```bash
-docker-compose -f docker-compose.yaml -f docker-compose.dev.yaml -f docker-compose.secret.yaml up --build -d
+docker-compose \
+  -f docker-compose.yaml \ 
+  -f docker-compose.dev.yaml \
+  -f docker-compose.secret.yaml \
+  up --build -d
 ``` 
 ### Attach
 ```bash
