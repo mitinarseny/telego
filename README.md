@@ -3,7 +3,7 @@
         <img src="_assets/logo.png" alt="telego logo" width="20%" />
     </a>
     <h1 align="center">telego</h1>
-    <p align="center">Docker Go template for fast developing fast <a href="https://core.telegram.org/bots">Telegram Bots</a></p>
+    <p align="center">Docker Go template for rapid developing <a href="https://core.telegram.org/bots">Telegram Bots</a></p>
     <p align="center">
       <a href="https://travis-ci.org/mitinarseny/telego"><img alt="TravisCI" src="https://img.shields.io/travis/mitinarseny/telego/master.svg?style=flat-square&logo=travis-ci"></a>
       <a href="https://golangci.com/r/github.com/mitinarseny/telego"><img src="https://golangci.com/badges/github.com/mitinarseny/telego.svg"></a>
