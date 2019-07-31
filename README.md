@@ -32,7 +32,7 @@ services:
       TELEGO_BOT_TOKEN: "12345689:ABCdEFgHi1JKLMNO23P45rSTU6vw78xyz-a"
 ```
 #### Notifier
-To enable Telegram notifications on your bot's status (`UP` or `DOWN`), create another bot and a group chat with this bot. Then edit `./docker-compose.secret.yaml`:
+You can enable Telegram notifications on your bot's status (`UP` or `DOWN`) by creating another bot and a group chat with this bot. Then edit `./docker-compose.secret.yaml`:
 ```yaml
 # ...
 environment:
