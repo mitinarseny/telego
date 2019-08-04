@@ -5,7 +5,7 @@ services:
     build:
       target: debugger
     ports:
-      - 40000:40000
+      - "40000:40000"
     security_opt:
       - apparmor=unconfined
     cap_add:
