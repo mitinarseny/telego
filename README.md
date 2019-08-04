@@ -80,7 +80,6 @@ func (b *Bot) HandleHello(update tgbotapi.Update) error {
     _, err := b.Send(msg)
     return err
 }
-
 ```
 ### Run
 ```bash
