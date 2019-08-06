@@ -1,0 +1,36 @@
+<yandex>
+    <logger>
+        <level>trace</level>
+        <log>/var/log/clickhouse-server/clickhouse-server.log</log>
+        <errorlog>/var/log/clickhouse-server/clickhouse-server.err.log</errorlog>
+        <size>1000M</size>
+        <count>10</count>
+    </logger>
+
+    <http_port>8123</http_port>
+
+    <tcp_port>9000</tcp_port>
+
+    <path>/var/lib/clickhouse/</path>
+    <tmp_path>/var/lib/clickhouse/tmp/</tmp_path>
+
+    <max_connections>4096</max_connections>
+    <keep_alive_timeout>3</keep_alive_timeout>
+    <max_concurrent_queries>100</max_concurrent_queries>
+    <user_files_path>/</user_files_path>
+    <users_config>users.xml</users_config>
+    <default_profile>default</default_profile>
+    <default_database>default</default_database>
+
+    <query_log>
+        <database>system</database>
+        <table>query_log</table>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+    </query_log>
+    <users_files_path>/etc/clickhouse-server/config.d</users_files_path>
+    <dictionaries_config>*_dictionary.xml</dictionaries_config>
+
+    <resharding>
+        <task_queue_path>/clickhouse/task_queue</task_queue_path>
+    </resharding>
+</yandex>

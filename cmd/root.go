@@ -3,7 +3,7 @@ package cmd
 import (
 	"strings"
 
-	"github.com/mitinarseny/telego/bot"
+	"github.com/mitinarseny/telego/bot_old"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -17,7 +17,7 @@ var rootCmd = &cobra.Command{
 }
 
 func start() {
-	if err := bot.Run(viper.GetString("bot.token"),
+	if err := bot_old.Run(viper.GetString("bot.token"),
 		viper.GetString("notifier.bot.token"),
 		viper.GetInt64("notifier.chat.id"),
 		true); err != nil {

@@ -1,13 +1,8 @@
-.idea/
-.DS_Store
-
-.dockerignore
-.git/
-.gitignore
+.*
+_assets
 README.md
 LICENSE
-_assets
 
-Dockerfile
+Dockerfile*
 docker-compose.yaml
 docker-compose.secret.yaml

@@ -50,7 +50,7 @@ environment:
 ```
 ### Code
 #### Logic
-Main logic of the bot should be implemented inside `HandleUpdates` method of `Bot` in [`bot/handlers/core.go`](bot/handlers/core.go):
+Main logic of the bot should be implemented inside `HandleUpdates` method of `Bot` in [`bot/handlers/core.go`](bot_old/handlers/core.go):
 ```go
 func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel, errCh chan <- error) error {
     for update := range updates {
@@ -69,9 +69,9 @@ func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel, errCh chan <- error
     return nil
 }
 ```
-Take a look at more complex example in [`bot/handlers/core.go`](bot/handlers/core.go).
+Take a look at more complex example in [`bot/handlers/core.go`](bot_old/handlers/core.go).
 #### Handlers
-All hanlders should be placed in [`bot/handlers/`](bot/handlers). Here is an example from [`hello.go`](bot/handlers/hello.go):
+All hanlders should be placed in [`bot/handlers/`](bot_old/handlers). Here is an example from [`hello.go`](bot_old/handlers/hello.go):
 ```go
 func (b *Bot) HandleHello(update tgbotapi.Update) error {
     msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)

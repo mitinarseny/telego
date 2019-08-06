@@ -1,4 +1,4 @@
-package bot
+package bot_old
 
 import (
     "context"
@@ -6,11 +6,19 @@ import (
     "os/signal"
     "sync"
     "syscall"
+    "time"
 
+    "github.com/mitinarseny/telego/bot_old/ch_log"
     log "github.com/sirupsen/logrus"
+    "github.com/spf13/viper"
 
     "github.com/go-telegram-bot-api/telegram-bot-api"
-    "github.com/mitinarseny/telego/bot/handlers"
+    "github.com/mitinarseny/telego/bot_old/handlers"
+)
+
+const (
+    logUpdatesBufferSize = 10000
+    logUpdatesTimeDelta  = 10 * time.Second
 )
 
 func startHandlingUpdates(ctx context.Context, botAPI *tgbotapi.BotAPI) (<-chan error, error) {
@@ -21,6 +29,10 @@ func startHandlingUpdates(ctx context.Context, botAPI *tgbotapi.BotAPI) (<-chan 
     if err != nil {
         return nil, err
     }
+
+
+
+
     errCh := make(chan error)
     defer close(errCh)
 
@@ -28,10 +40,23 @@ func startHandlingUpdates(ctx context.Context, botAPI *tgbotapi.BotAPI) (<-chan 
         bot := handlers.Bot{
             BotAPI: botAPI,
         }
-        if err := bot.HandleUpdates(updates, errCh); err != nil {
+        ul, err := ch_log.NewUpdatesLogger(
+            viper.GetString("log.db.host"),
+            viper.GetUint("log.db.port"),
+            viper.GetString("log.db.user"),
+            viper.GetString("log.db.password"),
+            viper.GetString("log.db.name"),
+            viper.GetString("log.db.table"))
+        if err != nil {
+            log.WithFields(log.Fields{
+                "context": "LOG",
+            }).Error(err)
+        }
+        if err := bot.HandleUpdates(updates, ul, errCh); err != nil {
             select {
             case errCh <- err:
             case <-ctx.Done():
+                return
             }
         }
     }()
@@ -39,6 +64,7 @@ func startHandlingUpdates(ctx context.Context, botAPI *tgbotapi.BotAPI) (<-chan 
 }
 
 func Run(token, notifierToken string, notifyChatID int64, debug bool) error {
+    log.Info("Starting...")
     botAPI, err := tgbotapi.NewBotAPI(token)
     if err != nil {
         return err

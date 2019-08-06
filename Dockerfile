@@ -1,7 +1,6 @@
 FROM golang:1.12.7-alpine AS build-env
 
 RUN apk update \
-    && apk upgrade \
     && apk add --no-cache \
         git \
     && go get -u \
@@ -30,6 +29,11 @@ RUN apk add --no-cache \
 
 COPY --from=builder /bin/bot /bin/
 
+ARG GID=12345
+ARG UID=54321
+RUN addgroup -g ${GID} bots && adduser -H -D -u ${UID} bot bots
+USER bot
+
 ENTRYPOINT ["/bin/bot"]
 
 
@@ -37,6 +41,7 @@ FROM server AS debugger
 
 COPY --from=build-env  /go/bin/dlv /bin/
 
-EXPOSE 40000
+USER root
 
+EXPOSE 40000
 ENTRYPOINT ["/bin/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/bin/bot"]
