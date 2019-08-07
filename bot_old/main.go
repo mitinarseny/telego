@@ -8,6 +8,7 @@ import (
     "syscall"
     "time"
 
+    "github.com/mitinarseny/telego/bot"
     "github.com/mitinarseny/telego/bot_old/ch_log"
     log "github.com/sirupsen/logrus"
     "github.com/spf13/viper"
@@ -81,8 +82,8 @@ func Run(token, notifierToken string, notifyChatID int64, debug bool) error {
             return err
         }
         log.WithField("notifier", notifier.Self.UserName).Info()
-        _ = notifyUp(notifier, notifyChatID, botAPI.Self.UserName)
-        defer notifyDown(notifier, notifyChatID, botAPI.Self.UserName)
+        _ = bot.notifyUp(notifier, notifyChatID, botAPI.Self.UserName)
+        defer bot.notifyDown(notifier, notifyChatID, botAPI.Self.UserName)
     }
 
     sigErrCh := getSignalErrorCh(ctx)
