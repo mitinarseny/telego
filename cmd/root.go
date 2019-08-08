@@ -1,7 +1,11 @@
 package cmd
 
 import (
+    "os"
+    "os/signal"
     "strings"
+    "syscall"
+    "time"
 
     "github.com/mitinarseny/telego/bot"
     "github.com/mitinarseny/telego/notifier"
@@ -23,33 +27,33 @@ func start() {
     var (
         notifierBot notifier.StatusNotifier
     )
+    botLogEntry := log.WithField("context", "BOT")
+    notifierLogEntry := log.WithField("context", "NOTIFIER")
 
     tgEndpoint := viper.GetString("telegram.endpoint")
 
     botToken := viper.GetString("bot.token")
-
+    poller := &tb.LongPoller{
+        Timeout: 60 * time.Second,
+    }
     b, err := tb.NewBot(tb.Settings{
         URL:    tgEndpoint,
         Token:  botToken,
-        Poller: nil,
+        Poller: poller,
         Reporter: func(err error) {
-            log.WithFields(log.Fields{
-                "context": "NOTIFIER",
-            }).Error(err)
+            notifierLogEntry.Error(err)
         },
     })
     if err != nil {
-        log.WithFields(log.Fields{
-            "context": "BOT",
-            "action":  "AUTHENTICATE",
-        }).Fatal(err)
+        botLogEntry.WithField("action", "AUTHENTICATE").Fatal(err)
     }
+    botLogEntry.WithFields(log.Fields{
+        "action": "AUTHENTICATE",
+        "account": b.Me.Username,
+    }).Info()
 
     if _, err := bot.Configure(b); err != nil {
-        log.WithFields(log.Fields{
-            "context": "BOT",
-            "action":  "CONFIGURE",
-        }).Fatal(err)
+        botLogEntry.WithField("action", "CONFIGURE").Fatal(err)
     }
 
     notifierToken := viper.GetString("notifier.bot.token")
@@ -59,11 +63,13 @@ func start() {
             Token: notifierToken,
         })
         if err != nil {
-            log.WithFields(log.Fields{
-                "context": "NOTIFIER",
-                "action":  "AUTHENTICATE",
-            }).Fatal(err)
+            notifierLogEntry.WithField("action", "AUTHENTICATE").Fatal(err)
         }
+        notifierLogEntry.WithFields(log.Fields{
+            "action": "AUTHENTICATE",
+            "account": nb.Me.Username,
+        }).Info()
+
         notifierBot = &notifier.Bot{
             Bot: nb,
             Chat: &tb.Chat{
@@ -72,29 +78,31 @@ func start() {
         }
     }
 
-    log.WithFields(log.Fields{
-        "context": "BOT",
-        "action":  "STARTING",
-    }).Info()
+    botLogEntry.WithField("action", "START").Info()
 
     if notifierBot != nil {
         if err := notifierBot.NotifyUp(b.Me.Username); err != nil {
-            log.WithFields(log.Fields{
-                "context": "NOTIFIER",
-                "action":  "NOTIFY",
-            }).Error(err)
+            notifierLogEntry.WithField("action", "NOTIFY").Error(err)
         }
         defer func() {
             if err := notifierBot.NotifyDown(b.Me.Username); err != nil {
-                log.WithFields(log.Fields{
-                    "context": "NOTIFIER",
-                    "action":  "NOTIFY",
-                }).Error(err)
+                notifierLogEntry.WithField("action", "NOTIFY").Error(err)
             }
         }()
     }
 
+    go func() {
+        sigCh := make(chan os.Signal, 1)
+        signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+        s := <-sigCh
+        log.WithFields(log.Fields{
+            "signal": s.String(),
+        }).Info("Got signal, stopping")
+        b.Stop()
+    }()
+
     b.Start()
+    botLogEntry.WithField("lastUpdateID", poller.LastUpdateID).Info()
 }
 
 func Execute() {
