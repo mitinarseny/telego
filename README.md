@@ -6,7 +6,7 @@
   <p align="center">Docker Go template for creating <a href="https://core.telegram.org/bots">Telegram Bots</a> with clean architecture</p>
   <p align="center">
     <a href="https://travis-ci.org/mitinarseny/telego"><img alt="TravisCI" src="https://img.shields.io/travis/mitinarseny/telego/master.svg?style=flat-square&logo=travis-ci"></a>
-    <a href="https://app.codacy.com/project/mitinarseny/telego"><img alt="Codacy" src="https://img.shields.io/codacy/grade/0702d21a638d4fa78328d988bdcedb19/master?style=flat-square&logo=codacy"></a>
+    <a href="https://app.codacy.com/app/mitinarseny/telego"><img alt="Codacy" src="https://img.shields.io/codacy/grade/0702d21a638d4fa78328d988bdcedb19/master?style=flat-square&logo=codacy"></a>
     <a href="https://golangci.com/r/github.com/mitinarseny/telego"><img src="https://golangci.com/badges/github.com/mitinarseny/telego.svg"></a>
     <a href="/LICENSE.md"><img alt="Software License" src="https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square"></a>
     <a href="https://saythanks.io/to/mitinarseny"><img alt="SayThanks.io" src="https://img.shields.io/badge/say-thanks-9933ff.svg?style=flat-square"></a>
