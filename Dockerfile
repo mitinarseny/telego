@@ -21,6 +21,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -gcflags "all=-N -l" -o /bin/bot .
 
 
+# hadolint ignore=DL3007
 FROM alpine:latest AS server
 
 RUN apk add --no-cache \
@@ -41,6 +42,7 @@ FROM server AS debugger
 
 COPY --from=build-env  /go/bin/dlv /bin/
 
+# hadolint ignore=DL3002
 USER root
 
 EXPOSE 40000

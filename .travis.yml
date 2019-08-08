@@ -14,10 +14,10 @@ before_script:
 script:
   - docker run --rm -i hadolint/hadolint < $(git ls-files --exclude='Dockerfile*' --ignored)
   - docker-compose build
-  - >-
-    docker-compose
-      -f docker-compose.yaml
-      -f docker-compose.dev.yaml
+  - >
+    docker-compose \
+      -f docker-compose.yaml \
+      -f docker-compose.dev.yaml \
       build
 
 notifications:
