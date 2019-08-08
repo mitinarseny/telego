@@ -1,6 +1,7 @@
 package cmd
 
 import (
+    "context"
     "os"
     "os/signal"
     "strings"
@@ -15,6 +16,13 @@ import (
     tb "gopkg.in/tucnak/telebot.v2"
 )
 
+const (
+    debugKey             = "debug"
+    botTokenKey          = "bot.token"
+    notifierBotTokenKey  = "notifier.bot.token"
+    notifierBotChatIDKey = "notifier.chat.id"
+)
+
 var rootCmd = &cobra.Command{
     Run: func(cmd *cobra.Command, args []string) {
         checkMandatoryParams()
@@ -24,9 +32,6 @@ var rootCmd = &cobra.Command{
 }
 
 func start() {
-    var (
-        notifierBot notifier.StatusNotifier
-    )
     botLogEntry := log.WithField("context", "BOT")
     notifierLogEntry := log.WithField("context", "NOTIFIER")
 
@@ -36,10 +41,14 @@ func start() {
     poller := &tb.LongPoller{
         Timeout: 60 * time.Second,
     }
+    logPoller := tb.NewMiddlewarePoller(poller, func(update *tb.Update) bool {
+        log.Debug(*update)
+        return true
+    })
     b, err := tb.NewBot(tb.Settings{
         URL:    tgEndpoint,
         Token:  botToken,
-        Poller: poller,
+        Poller: logPoller,
         Reporter: func(err error) {
             notifierLogEntry.Error(err)
         },
@@ -48,13 +57,14 @@ func start() {
         botLogEntry.WithField("action", "AUTHENTICATE").Fatal(err)
     }
     botLogEntry.WithFields(log.Fields{
-        "action": "AUTHENTICATE",
+        "action":  "AUTHENTICATE",
         "account": b.Me.Username,
     }).Info()
 
     if _, err := bot.Configure(b); err != nil {
         botLogEntry.WithField("action", "CONFIGURE").Fatal(err)
     }
+    statusNotifier := notifier.NewBaseNotifier()
 
     notifierToken := viper.GetString("notifier.bot.token")
     if notifierToken != "" {
@@ -66,43 +76,44 @@ func start() {
             notifierLogEntry.WithField("action", "AUTHENTICATE").Fatal(err)
         }
         notifierLogEntry.WithFields(log.Fields{
-            "action": "AUTHENTICATE",
+            "action":  "AUTHENTICATE",
             "account": nb.Me.Username,
         }).Info()
-
-        notifierBot = &notifier.Bot{
+        statusNotifier.Register(&notifier.Bot{
             Bot: nb,
             Chat: &tb.Chat{
                 ID: viper.GetInt64("notifier.chat.id"),
             },
-        }
+        })
     }
+    ctx, cancelFunc := context.WithCancel(context.Background())
+    defer cancelFunc()
 
-    botLogEntry.WithField("action", "START").Info()
+    sigCh := make(chan os.Signal, 1)
+    signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 
-    if notifierBot != nil {
-        if err := notifierBot.NotifyUp(b.Me.Username); err != nil {
-            notifierLogEntry.WithField("action", "NOTIFY").Error(err)
-        }
-        defer func() {
-            if err := notifierBot.NotifyDown(b.Me.Username); err != nil {
-                notifierLogEntry.WithField("action", "NOTIFY").Error(err)
-            }
-        }()
-    }
+    statusNotifier.Start(ctx)
+    defer statusNotifier.Stop()
 
     go func() {
-        sigCh := make(chan os.Signal, 1)
-        signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-        s := <-sigCh
-        log.WithFields(log.Fields{
-            "signal": s.String(),
-        }).Info("Got signal, stopping")
+        botLogEntry.WithField("action", "START").Info()
+        b.Start()
+    }()
+    defer func() {
         b.Stop()
+        botLogEntry.WithFields(log.Fields{
+            "action":       "STOP",
+            "lastUpdateID": poller.LastUpdateID,
+        }).Info()
     }()
 
-    b.Start()
-    botLogEntry.WithField("lastUpdateID", poller.LastUpdateID).Info()
+    statusNotifier.NotifyUp(b.Me.Username)
+    defer statusNotifier.NotifyDown(b.Me.Username)
+
+    gotSig := <-sigCh
+    log.WithFields(log.Fields{
+        "signal": gotSig.String(),
+    }).Info("Got signal, stopping...")
 }
 
 func Execute() {
@@ -114,14 +125,22 @@ func Execute() {
 func init() {
     cobra.OnInitialize(initConfig)
 
-    rootCmd.PersistentFlags().String("bot.token", "", "Telegram Bot API token")
-    _ = viper.BindPFlag("bot.token", rootCmd.PersistentFlags().Lookup("bot.token"))
+    rootCmd.PersistentFlags().String(debugKey, "", "Debug mode")
+    _ = viper.BindPFlag(debugKey, rootCmd.PersistentFlags().Lookup(debugKey))
 
-    rootCmd.PersistentFlags().String("notifier.bot.token", "", "Notifier Telegram Bot API token")
-    _ = viper.BindPFlag("notifier.bot.token", rootCmd.PersistentFlags().Lookup("notifier.bot.token"))
+    rootCmd.PersistentFlags().String(botTokenKey, "", "Telegram Bot API token")
+    _ = viper.BindPFlag(botTokenKey, rootCmd.PersistentFlags().Lookup(botTokenKey))
 
-    rootCmd.PersistentFlags().Int64("notifier.chat.id", -1, "Notifier Chat ID")
-    _ = viper.BindPFlag("notifier.chat.id", rootCmd.PersistentFlags().Lookup("notifier.chat.id"))
+    rootCmd.PersistentFlags().String(notifierBotTokenKey, "", "Notifier Telegram Bot API token")
+    _ = viper.BindPFlag(notifierBotTokenKey, rootCmd.PersistentFlags().Lookup(notifierBotTokenKey))
+
+    rootCmd.PersistentFlags().Int64(notifierBotChatIDKey, -1, "Notifier Chat ID")
+    _ = viper.BindPFlag(notifierBotChatIDKey, rootCmd.PersistentFlags().Lookup(notifierBotChatIDKey))
+
+    if viper.GetString(debugKey) != "" {
+        log.SetLevel(log.DebugLevel)
+        log.SetReportCaller(true)
+    }
 }
 
 func initConfig() {
@@ -133,8 +152,8 @@ func initConfig() {
 func checkMandatoryParams() {
     var missing []string
 
-    if v := viper.GetString("bot.token"); v == "" {
-        missing = append(missing, "bot.token")
+    if v := viper.GetString(botTokenKey); v == "" {
+        missing = append(missing, botTokenKey)
     }
 
     if len(missing) > 0 {
@@ -143,12 +162,12 @@ func checkMandatoryParams() {
 }
 
 func checkDependentParams() {
-    notifierBotToken := viper.GetString("notifier.bot.token")
-    notifierBotChatID := viper.GetInt64("notifier.chat.id")
+    notifierBotToken := viper.GetString(notifierBotTokenKey)
+    notifierBotChatID := viper.GetInt64(notifierBotChatIDKey)
     if (notifierBotToken == "") != (notifierBotChatID == 0) {
         log.Fatalf("%s must be provided simultaneously", strings.Join([]string{
-            "notifier.bot.token",
-            "notifier.chat.id",
+            notifierBotTokenKey,
+            notifierBotChatIDKey,
         }, ", "))
     }
 }

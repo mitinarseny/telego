@@ -4,6 +4,7 @@ import (
     "fmt"
 
     "github.com/mitinarseny/telego/helpers"
+    log "github.com/sirupsen/logrus"
     tb "gopkg.in/tucnak/telebot.v2"
 )
 
@@ -12,34 +13,26 @@ type Bot struct {
     Chat *tb.Chat
 }
 
-func (b *Bot) Notify(about, text string) error {
+func (b *Bot) String() string {
+    return b.Me.Username
+}
+
+func (b *Bot) OnNotify(n *Notification) {
     _, err := b.Bot.Send(b.Chat,
-        fmt.Sprintf("@%s*: %s*", helpers.EscMd(about), text),
+        fmt.Sprintf("@%s*: %s*", helpers.EscMd(n.About), n.What),
         &tb.SendOptions{
             ParseMode: tb.ModeMarkdown,
         })
-    return err
-}
-
-func (b *Bot) Notifyf(about, format string, args ...interface{}) error {
-    _, err := b.Bot.Send(b.Chat,
-        fmt.Sprintf("@%s*: %s*", helpers.EscMd(about), fmt.Sprintf(format, args)),
-        &tb.SendOptions{
-            ParseMode: tb.ModeMarkdown,
-        })
-    return err
-}
-
-func (b *Bot) NotifyError(about string, err error) error {
-    _, er := b.Bot.Send(b.Chat,
-        fmt.Sprintf("@%s*: %s*", helpers.EscMd(about), err))
-    return er
-}
-
-func (b *Bot) NotifyUp(about string) error {
-    return b.Notify(about, upMessage)
-}
-
-func (b *Bot) NotifyDown(about string) error {
-    return b.Notify(about, downMessage)
+    if err != nil {
+        log.WithFields(log.Fields{
+            "context": "NOTIFIER",
+            "action":  "SEND",
+        }).Error(err)
+        return
+    }
+    log.WithFields(log.Fields{
+        "context":  "NOTIFIER",
+        "notifier": b.Me.Username,
+        "action":   "SEND",
+    }).Info()
 }
