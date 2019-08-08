@@ -13,6 +13,9 @@
 </p>
 
 ## Table of Contents
+
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/b90c07229b01438a92f522eeb94973d1)](https://app.codacy.com/app/mitinarseny/telego?utm_source=github.com&utm_medium=referral&utm_content=mitinarseny/telego&utm_campaign=Badge_Grade_Dashboard)
+
 * [Usage](#usage)
   * [Create Bot](#create-bot)
   * [Copy Token](#copy-token)
