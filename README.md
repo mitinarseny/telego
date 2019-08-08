@@ -50,34 +50,30 @@ environment:
 ```
 ### Code
 #### Logic
-Main logic of the bot should be implemented inside `HandleUpdates` method of `Bot` in [`bot/handlers/core.go`](bot_old/handlers/core.go):
+Main logic of the bot should be implemented inside `Configure` function in [`bot/bot.go`](bot/bot.go):
 ```go
-func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel, errCh chan <- error) error {
-    for update := range updates {
-        go func() {
-            switch {
-            case update.Message != nil:
-                switch {
-                case update.Message.Command() == "hello":
-                    if err := b.HandleHello(update); err != nil {
-                        errCh <- err
-                    }
-                }
-            }
-        }()
+func Configure(b *tb.Bot) (*tb.Bot, error) {
+    h := handlers.Handler{Bot: b}
+    b.Handle("/hello", withLogMsg(h.HandleHello))
+    return b, nil
+}
+
+func withLogMsg(handler func(*tb.Message) error) func(message *tb.Message) {
+    return func(m *tb.Message) {
+        if err := handler(m); err != nil {
+            log.WithFields(log.Fields{
+                "context": "BOT",
+                "handler": handler,
+            }).Error(err)
+        }
     }
-    return nil
 }
 ```
-Take a look at more complex example in [`bot/handlers/core.go`](bot_old/handlers/core.go).
 #### Handlers
-All hanlders should be placed in [`bot/handlers/`](bot_old/handlers). Here is an example from [`hello.go`](bot_old/handlers/hello.go):
+All hanlders should be placed in [`bot/handlers/`](bot/handlers). Here is an example from [`hello.go`](bot/handlers/hello.go):
 ```go
-func (b *Bot) HandleHello(update tgbotapi.Update) error {
-    msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-    msg.ReplyToMessageID = update.Message.MessageID
-
-    _, err := b.Send(msg)
+func (b *Handler) HandleHello(m *tb.Message) error {
+    _, err := b.Bot.Send(m.Sender, "Hello, world!")
     return err
 }
 ```
