@@ -10,6 +10,8 @@ import (
 
     "github.com/mitinarseny/telego/bot"
     "github.com/mitinarseny/telego/notifier"
+    "github.com/mitinarseny/telego/ulog/clickhouse"
+    "github.com/mitinarseny/telego/ulog/tg_types"
     log "github.com/sirupsen/logrus"
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
@@ -21,6 +23,10 @@ const (
     botTokenKey          = "bot.token"
     notifierBotTokenKey  = "notifier.bot.token"
     notifierBotChatIDKey = "notifier.chat.id"
+    logDBHostKey         = "log.db.host"
+    logDBPortKey         = "log.db.port"
+    logDBUserKey         = "log.db.user"
+    logDBPasswordKey     = "log.db.password"
 )
 
 var rootCmd = &cobra.Command{
@@ -37,12 +43,33 @@ func start() {
 
     tgEndpoint := viper.GetString("telegram.endpoint")
 
-    botToken := viper.GetString("bot.token")
+    botToken := viper.GetString(botTokenKey)
+
+    updateLogger, err := clickhouse.NewBufferedUpdateLogger(
+        viper.GetString(logDBHostKey),
+        viper.GetInt(logDBPortKey),
+        viper.GetString(logDBUserKey),
+        viper.GetString(logDBPasswordKey))
+    if err != nil {
+        log.WithFields(log.Fields{
+            "context": "UpdatesLogger",
+            "action":  "CREATE",
+        }).Fatal(err)
+    }
+    defer updateLogger.Close()
+
     poller := &tb.LongPoller{
         Timeout: 60 * time.Second,
     }
     logPoller := tb.NewMiddlewarePoller(poller, func(update *tb.Update) bool {
-        log.Debug(*update)
+        go func() {
+            if err := updateLogger.LogUpdate(tg_types.FromTelebotUpdate(update)); err != nil {
+                log.WithFields(log.Fields{
+                    "context": "UpdatesLogger",
+                    "action":  "LOG",
+                }).Error(err)
+            }
+        }()
         return true
     })
     b, err := tb.NewBot(tb.Settings{
@@ -66,7 +93,7 @@ func start() {
     }
     statusNotifier := notifier.NewBaseNotifier()
 
-    notifierToken := viper.GetString("notifier.bot.token")
+    notifierToken := viper.GetString(notifierBotTokenKey)
     if notifierToken != "" {
         nb, err := tb.NewBot(tb.Settings{
             URL:   tgEndpoint,
@@ -82,7 +109,7 @@ func start() {
         statusNotifier.Register(&notifier.Bot{
             Bot: nb,
             Chat: &tb.Chat{
-                ID: viper.GetInt64("notifier.chat.id"),
+                ID: viper.GetInt64(notifierBotChatIDKey),
             },
         })
     }
@@ -136,6 +163,18 @@ func init() {
 
     rootCmd.PersistentFlags().Int64(notifierBotChatIDKey, -1, "Notifier Chat ID")
     _ = viper.BindPFlag(notifierBotChatIDKey, rootCmd.PersistentFlags().Lookup(notifierBotChatIDKey))
+
+    rootCmd.PersistentFlags().String(logDBHostKey, "", "Host of DB for logging telegram updates")
+    _ = viper.BindPFlag(logDBHostKey, rootCmd.PersistentFlags().Lookup(logDBHostKey))
+
+    rootCmd.PersistentFlags().String(logDBPortKey, "", "Port of DB for logging telegram updates")
+    _ = viper.BindPFlag(logDBPortKey, rootCmd.PersistentFlags().Lookup(logDBPortKey))
+
+    rootCmd.PersistentFlags().String(logDBUserKey, "", "User of DB for logging telegram updates")
+    _ = viper.BindPFlag(logDBUserKey, rootCmd.PersistentFlags().Lookup(logDBUserKey))
+
+    rootCmd.PersistentFlags().String(logDBPasswordKey, "", "Password for user of DB for logging telegram updates")
+    _ = viper.BindPFlag(logDBPasswordKey, rootCmd.PersistentFlags().Lookup(logDBPasswordKey))
 
     if viper.GetString(debugKey) != "" {
         log.SetLevel(log.DebugLevel)

@@ -12,12 +12,14 @@ func Configure(b *tb.Bot) (*tb.Bot, error) {
     return b, nil
 }
 
-func withLogMsg(handler func(*tb.Message) error) func(message *tb.Message) {
+type MessageHandler func(*tb.Message) error
+
+func withLogMsg(h MessageHandler) func(*tb.Message) {
     return func(m *tb.Message) {
-        if err := handler(m); err != nil {
+        if err := h(m); err != nil {
             log.WithFields(log.Fields{
                 "context": "BOT",
-                "handler": handler,
+                "handler":       h,
             }).Error(err)
         }
     }
