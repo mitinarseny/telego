@@ -70,6 +70,7 @@ func NewBufferedUpdateLogger(host string, port int, username, password, dbName s
                 }).Error(err)
                 return
             }
+            var count int
             for _, i := range items {
                 u, ok := i.(*tg_types.Update)
                 if !ok {
@@ -89,6 +90,7 @@ func NewBufferedUpdateLogger(host string, port int, username, password, dbName s
                     }).Error(err)
                     continue
                 }
+                count++
             }
 
             if err := tx.Commit(); err != nil {
@@ -110,6 +112,7 @@ func NewBufferedUpdateLogger(host string, port int, username, password, dbName s
             logEntry.WithFields(log.Fields{
                 "action": "FLUSH",
                 "status": "SUCCESS",
+                "count":  count,
             }).Info()
         }),
     }, nil
