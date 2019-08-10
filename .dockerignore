@@ -5,5 +5,4 @@ README.md
 LICENSE
 
 Dockerfile*
-docker-compose.yaml
-docker-compose.secret.yaml
+docker-compose*.yaml
