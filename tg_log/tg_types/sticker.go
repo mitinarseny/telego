@@ -9,8 +9,8 @@ type MaskPositionPoint string
 const (
     ForeheadMaskPositionPoint MaskPositionPoint = "forehead"
     EyesMaskPositionPoint     MaskPositionPoint = "eyes"
-    MouthMaskPositionPoint    MaskPositionPoint = "forehead"
-    ChinMaskPositionPoint     MaskPositionPoint = "forehead"
+    MouthMaskPositionPoint    MaskPositionPoint = "mouth"
+    ChinMaskPositionPoint     MaskPositionPoint = "chin"
 )
 
 type Sticker struct {

@@ -10,8 +10,8 @@ import (
 
     "github.com/mitinarseny/telego/bot"
     "github.com/mitinarseny/telego/notifier"
-    "github.com/mitinarseny/telego/ulog/clickhouse"
-    "github.com/mitinarseny/telego/ulog/tg_types"
+    "github.com/mitinarseny/telego/tg_log/clickhouse"
+    "github.com/mitinarseny/telego/tg_log/tg_types"
     log "github.com/sirupsen/logrus"
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
@@ -49,7 +49,8 @@ func start() {
         viper.GetString(logDBHostKey),
         viper.GetInt(logDBPortKey),
         viper.GetString(logDBUserKey),
-        viper.GetString(logDBPasswordKey))
+        viper.GetString(logDBPasswordKey),
+        "log")
     if err != nil {
         log.WithFields(log.Fields{
             "context": "UpdatesLogger",

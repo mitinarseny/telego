@@ -57,3 +57,10 @@ type SuccessfulPayment struct {
     TelegramPaymentChargeID string
     ProviderPaymentChargeID string
 }
+
+type OrderInfo struct {
+    Name            *string
+    PhoneNumber     *string
+    Email           *string
+    ShippingAddress *ShippingAddress
+}

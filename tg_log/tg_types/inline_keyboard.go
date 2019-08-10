@@ -14,3 +14,10 @@ type InlineKeyboardButton struct {
     CallbackGame                 *Game
     Pay                          *bool
 }
+
+type LoginURL struct {
+    URL                string
+    ForwardText        *string
+    BotUsername        *string
+    RequestWriteAccess *bool
+}

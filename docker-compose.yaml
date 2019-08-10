@@ -18,8 +18,8 @@ services:
     environment:
       - TELEGO_LOG_DB_HOST=log_db
       - TELEGO_LOG_DB_PORT=9000
-#      - TELEGO_LOG_DB_USER=bot
-#      - TELEGO_LOG_PASSWORD=password123
+      - TELEGO_LOG_DB_USER=logger
+      - TELEGO_LOG_DB_PASSWORD=password123
 #      - TELEGO_LOG_DB_NAME=updates
     restart: on-failure
     networks:
@@ -27,9 +27,10 @@ services:
 
   log_db:
     image: yandex/clickhouse-server
-#    volumes:
-#      - "./clickhouse:/etc/clickhouse-server/"
-#      - "clickhouse:/var/lib/clickhouse/"
+    volumes:
+      - "./clickhouse/config/:/etc/clickhouse-server/:ro"
+      - "./clickhouse/entrypoint-initdb.d/:/docker-entrypoint-initdb.d/:ro"
+      - "clickhouse:/var/lib/clickhouse"
     restart: on-failure
 #    healthcheck:
 #      test: ["CMD", "curl", "-f", "http://localhost/"]
@@ -42,5 +43,7 @@ services:
       nofile:
         soft: 262144
         hard: 262144
+    ports:
+      - 8123:8123
     networks:
       - telego
