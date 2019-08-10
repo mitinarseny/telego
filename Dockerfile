@@ -28,22 +28,22 @@ RUN apk add --no-cache \
     ca-certificates \
     libc6-compat
 
-COPY --from=builder /bin/bot /bin/
-
 ARG GID=12345
 ARG UID=54321
 RUN addgroup -g ${GID} bots && adduser -H -D -u ${UID} bot bots
 USER bot
+
+COPY --from=builder /bin/bot /bin/
 
 ENTRYPOINT ["/bin/bot"]
 
 
 FROM server AS debugger
 
-COPY --from=build-env  /go/bin/dlv /bin/
-
 # hadolint ignore=DL3002
 USER root
+
+COPY --from=build-env  /go/bin/dlv /bin/
 
 EXPOSE 40000
 ENTRYPOINT ["/bin/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/bin/bot"]

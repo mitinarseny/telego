@@ -79,7 +79,7 @@ func NewBufferedUpdateLogger(host string, port int, username, password, dbName s
                     }).Error("Unable to flush not Update")
                     continue
                 }
-                res, err := stmt.Exec(
+                _, err := stmt.Exec(
                     u.UpdateID,
                 )
                 if err != nil {
@@ -89,10 +89,6 @@ func NewBufferedUpdateLogger(host string, port int, username, password, dbName s
                     }).Error(err)
                     continue
                 }
-                log.WithFields(log.Fields{
-                    "update": *u,
-                    "action": "EXEC",
-                }).Info(res)
             }
 
             if err := tx.Commit(); err != nil {
@@ -111,18 +107,10 @@ func NewBufferedUpdateLogger(host string, port int, username, password, dbName s
                 }).Info()
                 return
             }
-            // count, err := res.RowsAffected()
-            // if err != nil {
-            //     logEntry.WithFields(log.Fields{
-            //         "count":   len(items),
-            //         "action":  "INSERT",
-            //     }).Info("Updates flushed successfully")
-            // } else {
-            //     logEntry.WithFields(log.Fields{
-            //         "count":  count,
-            //         "action": "INSERT",
-            //     }).Info("Updates flushed successfully")
-            // }
+            logEntry.WithFields(log.Fields{
+                "action": "FLUSH",
+                "status": "SUCCESS",
+            }).Info()
         }),
     }, nil
 }
