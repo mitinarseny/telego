@@ -1,4 +1,4 @@
-package tg_types
+package repository
 
 type Game struct {
     Title        string

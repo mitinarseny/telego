@@ -1,6 +1,8 @@
-package tg_types
+package repository
 
 import (
+    "context"
+
     tb "gopkg.in/tucnak/telebot.v2"
 )
 
@@ -16,6 +18,10 @@ type Update struct {
     ShippingQuery      *ShippingQuery
     PreCheckoutQuery   *PreCheckoutQuery
     Poll               *Poll
+}
+
+type UpdatesRepository interface {
+    Create(ctx context.Context, updates ...*Update) error
 }
 
 func FromTelebotUpdate(u *tb.Update) *Update {

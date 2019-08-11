@@ -1,4 +1,4 @@
-package tg_types
+package repository
 
 import (
     tb "gopkg.in/tucnak/telebot.v2"

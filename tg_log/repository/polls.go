@@ -1,4 +1,4 @@
-package tg_types
+package repository
 
 type Poll struct {
     ID       string

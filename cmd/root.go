@@ -2,8 +2,11 @@ package cmd
 
 import (
     "context"
+    "database/sql"
+    "net/url"
     "os"
     "os/signal"
+    "strconv"
     "strings"
     "syscall"
     "time"
@@ -11,7 +14,7 @@ import (
     "github.com/mitinarseny/telego/bot"
     "github.com/mitinarseny/telego/notifier"
     "github.com/mitinarseny/telego/tg_log/clickhouse"
-    "github.com/mitinarseny/telego/tg_log/tg_types"
+    "github.com/mitinarseny/telego/tg_log/repository"
     log "github.com/sirupsen/logrus"
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
@@ -44,13 +47,28 @@ func start() {
     tgEndpoint := viper.GetString("telegram.endpoint")
 
     botToken := viper.GetString(botTokenKey)
-
-    updateLogger, err := clickhouse.NewBufferedUpdateLogger(
+    clickhouseDB, err := getClickHouseDB(
         viper.GetString(logDBHostKey),
         viper.GetInt(logDBPortKey),
         viper.GetString(logDBUserKey),
         viper.GetString(logDBPasswordKey),
-        "log")
+        "log",
+    )
+    if err != nil {
+        log.WithFields(log.Fields{
+            "context": "CLICKHOUSE",
+            "action":  "CONNECT",
+        }).Fatal(err)
+    }
+    defer func() {
+        if err := clickhouseDB.Close(); err != nil {
+            log.WithFields(log.Fields{
+                "context": "CLICKHOUSE",
+                "action":  "CLOSE",
+            }).Error(err)
+        }
+    }()
+    updateLogger, err := clickhouse.NewBufferedUpdateLogger(clickhouseDB)
     if err != nil {
         log.WithFields(log.Fields{
             "context": "UpdatesLogger",
@@ -64,7 +82,7 @@ func start() {
     }
     logPoller := tb.NewMiddlewarePoller(poller, func(update *tb.Update) bool {
         go func() {
-            if err := updateLogger.LogUpdate(tg_types.FromTelebotUpdate(update)); err != nil {
+            if err := updateLogger.LogUpdate(repository.FromTelebotUpdate(update)); err != nil {
                 log.WithFields(log.Fields{
                     "context": "UpdatesLogger",
                     "action":  "LOG",
@@ -210,4 +228,30 @@ func checkDependentParams() {
             notifierBotChatIDKey,
         }, ", "))
     }
+}
+
+func getClickHouseDB(host string, port int, username, password, dbName string) (*sql.DB, error) {
+    connURL := url.URL{
+        Scheme: "tcp",
+        Host:   host,
+        Path:   dbName,
+    }
+    if port != 0 {
+        connURL.Host += ":" + strconv.Itoa(port)
+    }
+    if username != "" {
+        connURL.RawQuery += "&username=" + username
+    }
+    if password != "" {
+        connURL.RawQuery += "&password=" + password
+    }
+
+    db, err := sql.Open("clickhouse", connURL.String())
+    if err != nil {
+        return nil, err
+    }
+    if err := db.Ping(); err != nil {
+        return nil, err
+    }
+    return db, nil
 }

@@ -1,7 +1,12 @@
 package tg_log
 
-import "github.com/mitinarseny/telego/tg_log/tg_types"
+import "github.com/mitinarseny/telego/tg_log/repository"
 
-type UpdateLogger interface {
-    LogUpdate(tg_types.Update) error
+type UpdatesLogger interface {
+    LogUpdate(*repository.Update) error
+}
+
+type BufferedUpdatesLogger interface {
+    UpdatesLogger
+    Close() error
 }
