@@ -7,6 +7,10 @@ addons:
     packages:
       - docker-ce
 
+cache:
+  directories:
+    - $GOPATH/pkg/mod
+
 before_script:
   - docker pull hadolint/hadolint
   - docker-compose pull

@@ -3,6 +3,7 @@ version: '3.7'
 services:
   bot:
     build:
+      dockerfile: Dockerfile.dev
       target: debugger
     ports:
       - "40000:40000"

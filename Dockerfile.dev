@@ -18,7 +18,7 @@ FROM build-env AS builder
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/bot .
+RUN CGO_ENABLED=0 GOOS=linux go build -gcflags "all=-N -l" -o /bin/bot .
 
 
 FROM alpine:latest AS server
@@ -35,3 +35,14 @@ USER bot
 COPY --from=builder /bin/bot /bin/
 
 ENTRYPOINT ["/bin/bot"]
+
+
+FROM server AS debugger
+
+USER root
+
+COPY --from=build-env  /go/bin/dlv /bin/
+
+EXPOSE 40000
+ENTRYPOINT ["/bin/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/bin/bot"]
+
