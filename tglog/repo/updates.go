@@ -28,7 +28,7 @@ func (u *Update) ID() interface{} {
 }
 
 type UpdatesRepo interface {
-    Create(ctx context.Context, updates []Update) ([]Update, error)
+    Create(ctx context.Context, updates ...*Update) ([]*Update, error)
 }
 
 func FromTelebotUpdate(u *tb.Update) *Update {

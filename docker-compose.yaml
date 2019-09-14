@@ -20,7 +20,7 @@ services:
     environment:
       TELEGO_LOG_DB_HOST: log_db
       TELEGO_LOG_DB_PORT: 27017
-      TELEGO_LOG_DB_USER: root
+      TELEGO_LOG_DB_USER: bot
       TELEGO_LOG_DB_PASSWORD: Password123!
       TELEGO_LOG_DB_NAME: log
     depends_on:

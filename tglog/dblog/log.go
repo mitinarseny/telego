@@ -6,11 +6,11 @@ import (
     "github.com/mitinarseny/telego/tglog/repo"
 )
 
-type DBLogger struct {
+type RepoLogger struct {
     UpdatesRepo repo.UpdatesRepo
 }
 
-func (l *DBLogger) LogUpdates(updates []repo.Update) error {
-    _, err := l.UpdatesRepo.Create(context.Background(), updates)
+func (l *RepoLogger) LogUpdates(updates ...*repo.Update) error {
+    _, err := l.UpdatesRepo.Create(context.Background(), updates...)
     return err
 }

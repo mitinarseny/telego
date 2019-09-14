@@ -3,6 +3,7 @@ module github.com/mitinarseny/telego
 go 1.12
 
 require (
+	github.com/charithe/timedbuf v0.0.0-20160717160936-e4a8ee453eb4
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v0.0.5

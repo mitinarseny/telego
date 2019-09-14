@@ -62,7 +62,7 @@ func start() error {
 
     mongoOpts := options.Client().SetAppName("bot").SetAuth(options.Credential{
         Username: viper.GetString(logDBUserKey),
-        Password: viper.GetString(logDBUserKey),
+        Password: viper.GetString(logDBPasswordKey),
     }).SetHosts([]string{
         viper.GetString(logDBHostKey),
     })
@@ -97,9 +97,17 @@ func start() error {
         }
     }()
     var updatesLogger tglog.UpdatesLogger
-
-    updatesLogger = &dblog.DBLogger{
-        UpdatesRepo: mongo.NewUpdatesRepository(mongoClient.Database(viper.GetString(logDBNameKey))),
+    bufUpdRepo := mongo.NewBufferedUpdatesRepo(mongoClient.Database(viper.GetString(logDBNameKey)))
+    defer func() {
+        if err := bufUpdRepo.Close(); err != nil {
+            log.WithFields(log.Fields{
+                "context": "MongoDB.BufferedUpdatesRepo",
+                "action":  "Close",
+            }).Error(err)
+        }
+    }()
+    updatesLogger = &dblog.RepoLogger{
+        UpdatesRepo: bufUpdRepo,
     }
 
     poller := &tb.LongPoller{
@@ -108,7 +116,7 @@ func start() error {
     logPoller := tb.NewMiddlewarePoller(poller, func(update *tb.Update) bool {
         go func() {
             upd := repo.FromTelebotUpdate(update)
-            if err := updatesLogger.LogUpdates([]repo.Update{*upd}); err != nil {
+            if err := updatesLogger.LogUpdates(upd); err != nil {
                 log.WithFields(log.Fields{
                     "context": "UpdatesLogger",
                     "action":  "LOG",
@@ -122,10 +130,10 @@ func start() error {
         Token:  botToken,
         Poller: logPoller,
         Client: &http.Client{
-            Timeout: 30 * time.Second,
+            Timeout: 0,
         },
         Reporter: func(err error) {
-            notifierLogEntry.Error(err)
+            botLogEntry.Error(err)
         },
     })
     if err != nil {
