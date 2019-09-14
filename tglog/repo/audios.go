@@ -7,13 +7,13 @@ import (
 )
 
 type Audio struct {
-    FileID    string
-    Duration  time.Time
-    Performer *string
-    Title     *string
-    MimeType  *string
-    FileSize  *int64
-    Thumb     *PhotoSize
+    FileID    string     `bson:"file_id,omitempty"`
+    Duration  time.Time  `bson:"duration,omitempty"`
+    Performer *string    `bson:"performer,omitempty"`
+    Title     *string    `bson:"title,omitempty"`
+    MimeType  *string    `bson:"mime_type,omitempty"`
+    FileSize  *int64     `bson:"file_size,omitempty"`
+    Thumb     *PhotoSize `bson:"thumb,omitempty"`
 }
 
 func fromTelebotAudio(a *tb.Audio) *Audio {

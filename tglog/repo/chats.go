@@ -14,12 +14,12 @@ const (
 )
 
 type Chat struct {
-    ID        int64
-    Type      ChatType
-    Title     *string
-    Username  *string
-    FirstName *string
-    LastName  *string
+    ID        int64    `bson:"_id,omitempty"`
+    Type      ChatType `bson:"type,omitempty"`
+    Title     *string  `bson:"title,omitempty"`
+    Username  *string  `bson:"username,omitempty"`
+    FirstName *string  `bson:"first_name,omitempty"`
+    LastName  *string  `bson:"last_name,omitempty"`
 }
 
 func fromTelebotChat(c *tb.Chat) *Chat {

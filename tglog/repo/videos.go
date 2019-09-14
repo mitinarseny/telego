@@ -7,13 +7,13 @@ import (
 )
 
 type Video struct {
-    FileID   string
-    Width    int
-    Height   int
-    Duration time.Duration
-    Thumb    *PhotoSize
-    MimeType *string
-    FileSize *int64
+    FileID   string        `bson:"file_id,omitempty"`
+    Width    int           `bson:"width,omitempty"`
+    Height   int           `bson:"height,omitempty"`
+    Duration time.Duration `bson:"duration,omitempty"`
+    Thumb    *PhotoSize    `bson:"thumb,omitempty"`
+    MimeType *string       `bson:"mime_type,omitempty"`
+    FileSize *int64        `bson:"file_size,omitempty"`
 }
 
 func fromTelebotVideo(v *tb.Video) *Video {

@@ -5,11 +5,11 @@ import (
 )
 
 type Venue struct {
-    Location       Location
-    Title          string
-    Address        string
-    FourSquareID   *string
-    FourSquareType *string
+    Location       Location `bson:"location,omitempty"`
+    Title          string   `bson:"title,omitempty"`
+    Address        string   `bson:"address,omitempty"`
+    FourSquareID   *string  `bson:"foursquare_id,omitempty"`
+    FourSquareType *string  `bson:"foursquare_type,omitempty"`
 }
 
 func fromTelebotVenue(v *tb.Venue) *Venue {

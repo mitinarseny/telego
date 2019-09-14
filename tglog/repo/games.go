@@ -1,10 +1,10 @@
 package repo
 
 type Game struct {
-    Title        string
-    Description  string
-    Photo        []PhotoSize
-    Text         *string
-    TextEntities []MessageEntity
-    Animation    *Animation
+    Title        string          `bson:"title,omitempty"`
+    Description  string          `bson:"description,omitempty"`
+    Photo        []PhotoSize     `bson:"photo,omitempty"`
+    Text         *string         `bson:"text,omitempty"`
+    TextEntities []MessageEntity `bson:"text_entities,omitempty"`
+    Animation    *Animation      `bson:"animation,omitempty"`
 }

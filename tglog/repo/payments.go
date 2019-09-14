@@ -5,21 +5,21 @@ import (
 )
 
 type Invoice struct {
-    Title          string
-    Description    string
-    StartParameter string
-    Currency       string
-    TotalAmount    int
+    Title          string `bson:"title,omitempty"`
+    Description    string `bson:"description,omitempty"`
+    StartParameter string `bson:"start_parameter,omitempty"`
+    Currency       string `bson:"currency,omitempty"`
+    TotalAmount    int    `bson:"total_amount,omitempty"`
 }
 
 type PreCheckoutQuery struct {
-    ID               string
-    From             User
-    Currency         string
-    TotalAmount      int
-    InvoicePayload   string
-    ShippingOptionID *string
-    OrderInfo        *OrderInfo
+    ID               string     `bson:"_id,omitempty"`
+    From             User       `bson:"from,omitempty"`
+    Currency         string     `bson:"currency,omitempty"`
+    TotalAmount      int        `bson:"total_amount,omitempty"`
+    InvoicePayload   string     `bson:"invoice_payload,omitempty"`
+    ShippingOptionID *string    `bson:"shipping_option_id,omitempty"`
+    OrderInfo        *OrderInfo `bson:"order_info,omitempty"`
 }
 
 func fromPreCheckoutQuery(q *tb.PreCheckoutQuery) *PreCheckoutQuery {
@@ -33,34 +33,34 @@ func fromPreCheckoutQuery(q *tb.PreCheckoutQuery) *PreCheckoutQuery {
 }
 
 type ShippingAddress struct {
-    CountryCode string
-    State       string
-    City        string
-    StreetLine1 string
-    StreetLine2 string
-    PostCode    string
+    CountryCode string `bson:"country_code,omitempty"`
+    State       string `bson:"state,omitempty"`
+    City        string `bson:"city,omitempty"`
+    StreetLine1 string `bson:"street_line1,omitempty"`
+    StreetLine2 string `bson:"street_line2,omitempty"`
+    PostCode    string `bson:"post_code,omitempty"`
 }
 
 type ShippingQuery struct {
-    ID              string
-    From            User
-    InvoicePayload  string
-    ShippingAddress ShippingAddress
+    ID              string          `bson:"_id,omitempty"`
+    From            User            `bson:"from,omitempty"`
+    InvoicePayload  string          `bson:"invoice_payload,omitempty"`
+    ShippingAddress ShippingAddress `bson:"shipping_address,omitempty"`
 }
 
 type SuccessfulPayment struct {
-    Currency                string
-    TotalAmount             int
-    InvoicePayload          string
-    ShippingOptionID        *string
-    OrderInfo               *OrderInfo
-    TelegramPaymentChargeID string
-    ProviderPaymentChargeID string
+    Currency                string     `bson:"currency,omitempty"`
+    TotalAmount             int        `bson:"total_amount,omitempty"`
+    InvoicePayload          string     `bson:"invoice_payload,omitempty"`
+    ShippingOptionID        *string    `bson:"shipping_option_id,omitempty"`
+    OrderInfo               *OrderInfo `bson:"order_info,omitempty"`
+    TelegramPaymentChargeID string     `bson:"telegram_payment_charge_id,omitempty"`
+    ProviderPaymentChargeID string     `bson:"provider_payment_charge_id,omitempty"`
 }
 
 type OrderInfo struct {
-    Name            *string
-    PhoneNumber     *string
-    Email           *string
-    ShippingAddress *ShippingAddress
+    Name            *string          `bson:"name,omitempty"`
+    PhoneNumber     *string          `bson:"phone_number,omitempty"`
+    Email           *string          `bson:"email,omitempty"`
+    ShippingAddress *ShippingAddress `bson:"shipping_address,omitempty"`
 }

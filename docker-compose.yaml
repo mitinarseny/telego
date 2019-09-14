@@ -29,7 +29,7 @@ services:
       - telego
 
   log_db:
-    image: mongo
+    image: mongo:4.2.0-bionic
     restart: always
     environment:
       MONGO_INITDB_ROOT_USERNAME: bot

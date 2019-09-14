@@ -17,23 +17,37 @@ const (
 )
 
 type UpdatesRepo struct {
-    collection *mongo.Collection
+    this  *mongo.Collection
+    users repo.UsersRepo
 }
 
-func NewUpdatesRepo(db *mongo.Database) *UpdatesRepo {
+type UpdatesRepoDependentRepos struct {
+    Users repo.UsersRepo
+}
+
+func NewUpdatesRepo(db *mongo.Database, deps *UpdatesRepoDependentRepos) *UpdatesRepo {
     return &UpdatesRepo{
-        collection: db.Collection(updatesCollectionName),
+        this:  db.Collection(updatesCollectionName),
+        users: deps.Users,
     }
 }
 
 func (r *UpdatesRepo) Create(ctx context.Context, updates ...*repo.Update) ([]*repo.Update, error) {
     upds := make([]interface{}, 0, len(updates))
     for _, update := range updates {
+        if msg := update.Message; msg != nil {
+            if from := msg.From; from != nil {
+                if _, err := r.users.Create(ctx, from); err != nil {
+                    return nil, err
+                }
+            }
+        }
         ca := time.Now()
         update.CreatedAt = &ca
         upds = append(upds, update)
     }
-    _, err := r.collection.InsertMany(ctx, upds)
+    // _, err := r.this.UpdateMany(ctx, )
+    _, err := r.this.InsertMany(ctx, upds)
     if err != nil {
         log.WithFields(log.Fields{
             "context": "UpdatesRepo",
@@ -59,9 +73,9 @@ type BufferedUpdatesRepo struct {
     tb *tb.TimedBuf
 }
 
-func NewBufferedUpdatesRepo(db *mongo.Database) *BufferedUpdatesRepo {
+func NewBufferedUpdatesRepo(ur *UpdatesRepo) *BufferedUpdatesRepo {
     r := &BufferedUpdatesRepo{
-        UpdatesRepo: NewUpdatesRepo(db),
+        UpdatesRepo: ur,
     }
     r.tb = tb.New(buffSize, buffDuration, func(items []interface{}) {
         upds := make([]*repo.Update, 0, len(items))
@@ -89,7 +103,7 @@ func NewBufferedUpdatesRepo(db *mongo.Database) *BufferedUpdatesRepo {
     return r
 }
 
-func (r *BufferedUpdatesRepo) Create(ctx context.Context, updates ...*repo.Update) ([]*repo.Update, error) {
+func (r *BufferedUpdatesRepo) Create(_ context.Context, updates ...*repo.Update) ([]*repo.Update, error) {
     upds := make([]interface{}, 0, len(updates))
     for _, u := range updates {
         upds = append(upds, u)

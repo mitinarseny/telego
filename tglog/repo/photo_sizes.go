@@ -5,10 +5,10 @@ import (
 )
 
 type PhotoSize struct {
-    FileID   string
-    Width    int
-    Height   int
-    FileSize *int64
+    FileID   string `bson:"file_id,omitempty"`
+    Width    int    `bson:"width,omitempty"`
+    Height   int    `bson:"height,omitempty"`
+    FileSize *int64 `bson:"file_size,omitempty"`
 }
 
 func fromTelebotPhoto(p *tb.Photo) *PhotoSize {

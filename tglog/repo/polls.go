@@ -1,13 +1,13 @@
 package repo
 
 type Poll struct {
-    ID       string
-    Question string
-    Options  []PollOption
-    IsClosed bool
+    ID       string       `bson:"_id,omitempty"`
+    Question string       `bson:"question,omitempty"`
+    Options  []PollOption `bson:"options,omitempty"`
+    IsClosed bool         `bson:"is_closed,omitempty"`
 }
 
 type PollOption struct {
-    Text       string
-    VoterCount int
+    Text       string `bson:"text,omitempty"`
+    VoterCount int    `bson:"voter_count,omitempty"`
 }

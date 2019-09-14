@@ -97,7 +97,13 @@ func start() error {
         }
     }()
     var updatesLogger tglog.UpdatesLogger
-    bufUpdRepo := mongo.NewBufferedUpdatesRepo(mongoClient.Database(viper.GetString(logDBNameKey)))
+
+    mongoDB := mongoClient.Database(viper.GetString(logDBNameKey))
+    usersRepo := mongo.NewUsersRepo(mongoDB)
+    updatesRepo := mongo.NewUpdatesRepo(mongoDB, &mongo.UpdatesRepoDependentRepos{
+        Users: usersRepo,
+    })
+    bufUpdRepo := mongo.NewBufferedUpdatesRepo(updatesRepo)
     defer func() {
         if err := bufUpdRepo.Close(); err != nil {
             log.WithFields(log.Fields{

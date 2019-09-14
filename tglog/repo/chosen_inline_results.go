@@ -3,12 +3,13 @@ package repo
 import (
     tb "gopkg.in/tucnak/telebot.v2"
 )
+
 type ChosenInlineResult struct {
-    ResultID        string
-    From            User
-    Location        *Location
-    InlineMessageID *string
-    Query           string
+    ResultID        string    `bson:"result_id,omitempty"`
+    From            User      `bson:"from,omitempty"`
+    Location        *Location `bson:"location,omitempty"`
+    InlineMessageID *string   `bson:"inline_message_id,omitempty"`
+    Query           string    `bson:"query,omitempty"`
 }
 
 func fromTelebotChosenInlineResult(r *tb.ChosenInlineResult) *ChosenInlineResult {

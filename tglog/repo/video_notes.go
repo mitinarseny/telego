@@ -7,11 +7,11 @@ import (
 )
 
 type VideoNote struct {
-    FileID   string
-    Length   int
-    Duration time.Duration
-    Thumb    *PhotoSize
-    FileSize *int64
+    FileID   string        `bson:"file_id,omitempty"`
+    Length   int           `bson:"length,omitempty"`
+    Duration time.Duration `bson:"duration,omitempty"`
+    Thumb    *PhotoSize    `bson:"thumb,omitempty"`
+    FileSize *int64        `bson:"file_size,omitempty"`
 }
 
 func fromTelebotVideoNote(v *tb.VideoNote) *VideoNote {

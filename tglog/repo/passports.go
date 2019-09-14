@@ -21,31 +21,31 @@ const (
 )
 
 type PassportData struct {
-    Data        *EncryptedPassportElement
-    Credentials *EncryptedCredentials
+    Data        *EncryptedPassportElement `bson:"data,omitempty"`
+    Credentials *EncryptedCredentials     `bson:"credentials,omitempty"`
 }
 
 type EncryptedPassportElement struct {
-    Type        PassportElementType
-    Data        *string
-    PhoneNumber *string
-    Email       *string
-    Files       []PassportFile
-    FrontSide   []PassportFile
-    ReverseSide []PassportFile
-    Selfie      []PassportFile
-    Translation []PassportFile
-    Hash        string
+    Type        PassportElementType `bson:"type,omitempty"`
+    Data        *string             `bson:"data,omitempty"`
+    PhoneNumber *string             `bson:"phone_number,omitempty"`
+    Email       *string             `bson:"email,omitempty"`
+    Files       []PassportFile      `bson:"files,omitempty"`
+    FrontSide   []PassportFile      `bson:"front_side,omitempty"`
+    ReverseSide []PassportFile      `bson:"reverse_side,omitempty"`
+    Selfie      []PassportFile      `bson:"selfie,omitempty"`
+    Translation []PassportFile      `bson:"translation,omitempty"`
+    Hash        string              `bson:"hash,omitempty"`
 }
 
 type PassportFile struct {
-    FileID   string
-    FileSize int64
-    FileDate time.Time
+    FileID   string    `bson:"file_id,omitempty"`
+    FileSize int64     `bson:"file_size,omitempty"`
+    FileDate time.Time `bson:"file_date,omitempty"`
 }
 
 type EncryptedCredentials struct {
-    Data   string
-    Hash   string
-    Secret string
+    Data   string `bson:"data,omitempty"`
+    Hash   string `bson:"hash,omitempty"`
+    Secret string `bson:"secret,omitempty"`
 }

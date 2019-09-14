@@ -5,14 +5,14 @@ import (
 )
 
 type Document struct {
-    FileID   string
-    Thumb    *PhotoSize
-    FileName *string
-    MimeType *string
-    FileSize *int64
+    FileID   string     `bson:"file_id,omitempty"`
+    Thumb    *PhotoSize `bson:"thumb,omitempty"`
+    FileName *string    `bson:"file_name,omitempty"`
+    MimeType *string    `bson:"mime_type,omitempty"`
+    FileSize *int64     `bson:"file_size,omitempty"`
 }
 
-func fromTelebotDocument( d *tb.Document) *Document {
+func fromTelebotDocument(d *tb.Document) *Document {
     doc := new(Document)
     doc.FileID = d.FileID
     doc.Thumb = fromTelebotPhoto(d.Thumbnail)

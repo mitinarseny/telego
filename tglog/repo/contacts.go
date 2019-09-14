@@ -5,11 +5,11 @@ import (
 )
 
 type Contact struct {
-    PhoneNumber string
-    FirstName   string
-    LastName    *string
-    UserID      *int64
-    VCard       *string
+    PhoneNumber string  `bson:"phone_number,omitempty"`
+    FirstName   string  `bson:"first_name,omitempty"`
+    LastName    *string `bson:"last_name,omitempty"`
+    UserID      *int64  `bson:"user_id,omitempty"`
+    VCard       *string `bson:"vcard,omitempty"`
 }
 
 func fromTelebotContact(c *tb.Contact) *Contact {

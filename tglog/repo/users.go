@@ -1,16 +1,22 @@
 package repo
 
 import (
+    "context"
+
     tb "gopkg.in/tucnak/telebot.v2"
 )
 
 type User struct {
-    ID           int64
-    IsBot        bool
-    FirstName    string
-    LastName     *string
-    Username     *string
-    LanguageCode *string
+    ID           int64   `bson:"_id,omitempty"`
+    IsBot        bool    `bson:"is_bot,omitempty"`
+    FirstName    string  `bson:"first_name,omitempty"`
+    LastName     *string `bson:"last_name,omitempty"`
+    Username     *string `bson:"username,omitempty"`
+    LanguageCode *string `bson:"language_code,omitempty"`
+}
+
+type UsersRepo interface {
+    Create(ctx context.Context, users ...*User) ([]*User, error)
 }
 
 func fromTelebotUser(u *tb.User) *User {

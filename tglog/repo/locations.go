@@ -5,8 +5,8 @@ import (
 )
 
 type Location struct {
-    Longitude float32
-    Latitude  float32
+    Longitude float32 `bson:"longitude,omitempty"`
+    Latitude  float32 `bson:"latitude,omitempty"`
 }
 
 func fromTelebotLocation(l *tb.Location) *Location {

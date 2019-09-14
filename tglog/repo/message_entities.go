@@ -22,11 +22,11 @@ const (
 )
 
 type MessageEntity struct {
-    Type   MessageEntityType
-    Offset int
-    Length int
-    URL    *string
-    User   *User
+    Type   MessageEntityType `bson:"type,omitempty"`
+    Offset int               `bson:"offset,omitempty"`
+    Length int               `bson:"length,omitempty"`
+    URL    *string           `bson:"url,omitempty"`
+    User   *User             `bson:"user,omitempty"`
 }
 
 func fromTelebotMessageEntity(e *tb.MessageEntity) *MessageEntity {
