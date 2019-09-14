@@ -61,7 +61,7 @@ func (r *UpdatesRepo) Create(ctx context.Context, updates ...*repo.Update) ([]*r
                 }
             }
             if chat := msg.Chat; chat != nil {
-                if _, err := r.chats.Create(ctx, chat); err != nil {
+                if _, err := r.chats.CreateIfNotExists(ctx, chat); err != nil {
                     return nil, err
                 }
             }

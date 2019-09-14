@@ -61,10 +61,12 @@ func (r *UsersRepo) CreateIfNotExists(ctx context.Context, users ...*repo.User) 
         }).Error(err)
         return nil, err
     }
-    log.WithFields(log.Fields{
-        "context": "UsersRepo",
-        "status":  "CREATED",
-        "count":   res.UpsertedCount,
-    }).Info()
+    if res.UpsertedCount > 0 {
+        log.WithFields(log.Fields{
+            "context": "UsersRepo",
+            "status":  "CREATED",
+            "count":   res.UpsertedCount,
+        }).Info()
+    }
     return users, nil
 }

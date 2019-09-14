@@ -37,4 +37,5 @@ func fromTelebotChat(c *tb.Chat) *Chat {
 
 type ChatsRepo interface {
     Create(ctx context.Context, chats ...*Chat) ([]*Chat, error)
+    CreateIfNotExists(ctx context.Context, chats ...*Chat) ([]*Chat, error)
 }
