@@ -3,7 +3,7 @@ package notifier
 import (
     "fmt"
 
-    "github.com/mitinarseny/telego/helpers"
+    "github.com/mitinarseny/telego/utils"
     log "github.com/sirupsen/logrus"
     tb "gopkg.in/tucnak/telebot.v2"
 )
@@ -19,7 +19,7 @@ func (b *Bot) String() string {
 
 func (b *Bot) OnNotify(n *Notification) {
     _, err := b.Bot.Send(b.Chat,
-        fmt.Sprintf("@%s*: %s*", helpers.EscMd(n.About), n.What),
+        fmt.Sprintf("@%s*: %s*", utils.EscMd(n.About), n.What),
         &tb.SendOptions{
             ParseMode: tb.ModeMarkdown,
         })

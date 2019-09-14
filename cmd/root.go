@@ -12,12 +12,13 @@ import (
     "syscall"
     "time"
 
+    mongoadmin "github.com/mitinarseny/telego/administration/repo/mongo"
     "github.com/mitinarseny/telego/bot"
     "github.com/mitinarseny/telego/notifier"
     "github.com/mitinarseny/telego/tglog"
     "github.com/mitinarseny/telego/tglog/dblog"
     "github.com/mitinarseny/telego/tglog/repo"
-    "github.com/mitinarseny/telego/tglog/repo/mongo"
+    mongolog "github.com/mitinarseny/telego/tglog/repo/mongo"
     log "github.com/sirupsen/logrus"
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
@@ -28,15 +29,22 @@ import (
 )
 
 const (
-    debugKey             = "debug"
-    botTokenKey          = "bot.token"
+    debugKey = "debug"
+
+    botTokenKey = "bot.token"
+
     notifierBotTokenKey  = "notifier.bot.token"
     notifierBotChatIDKey = "notifier.chat.id"
-    logDBHostKey         = "log.db.host"
-    logDBPortKey         = "log.db.port"
-    logDBUserKey         = "log.db.user"
-    logDBPasswordKey     = "log.db.password"
-    logDBNameKey         = "log.db.name"
+
+    logDBHostKey     = "log.db.host"
+    logDBPortKey     = "log.db.port"
+    logDBUserKey     = "log.db.user"
+    logDBPasswordKey = "log.db.password"
+    logDBNameKey     = "log.db.name"
+
+    adminDBNameKey = "admin.db.name"
+
+    superUserIDKey = "superuser.id"
 )
 
 var rootCmd = &cobra.Command{
@@ -98,10 +106,10 @@ func start() error {
     }()
     var updatesLogger tglog.UpdatesLogger
 
-    mongoDB := mongoClient.Database(viper.GetString(logDBNameKey))
-    usersRepo := mongo.NewUsersRepo(mongoDB)
-    chatsRepo := mongo.NewChatsRepo(mongoDB)
-    updatesRepo, err := mongo.NewUpdatesRepo(mongoDB, &mongo.UpdatesRepoDependentRepos{
+    logDB := mongoClient.Database(viper.GetString(logDBNameKey))
+    usersRepo := mongolog.NewUsersRepo(logDB)
+    chatsRepo := mongolog.NewChatsRepo(logDB)
+    updatesRepo, err := mongolog.NewUpdatesRepo(logDB, &mongolog.UpdatesRepoDependencies{
         Users: usersRepo,
         Chats: chatsRepo,
     })
@@ -112,7 +120,7 @@ func start() error {
         }).Error(err)
         return err
     }
-    bufUpdRepo := mongo.NewBufferedUpdatesRepo(updatesRepo)
+    bufUpdRepo := mongolog.NewBufferedUpdatesRepo(updatesRepo)
     defer func() {
         if err := bufUpdRepo.Close(); err != nil {
             log.WithFields(log.Fields{
@@ -160,7 +168,22 @@ func start() error {
         "account": b.Me.Username,
     }).Info()
 
-    if _, err := bot.Configure(b); err != nil {
+    adminDB := mongoClient.Database(viper.GetString(adminDBNameKey))
+    rolesRepo := mongoadmin.NewRolesRepo(adminDB)
+    adminsRepo, err := mongoadmin.NewAdminsRepo(adminDB, &mongoadmin.AdminsRepoDependencies{
+        Roles: rolesRepo,
+    })
+    if err != nil {
+        log.WithFields(log.Fields{
+            "context": "AdminsRepo",
+            "action":  "CREATE",
+        }).Error(err)
+        return err
+    }
+    if _, err := bot.Configure(b, &bot.Storage{
+        Admins: adminsRepo,
+        Roles:  rolesRepo,
+    }, viper.GetInt64(superUserIDKey)); err != nil {
         botLogEntry.WithField("action", "CONFIGURE").Error(err)
         return err
     }
@@ -246,6 +269,8 @@ func checkMandatoryParams() {
         logDBUserKey,
         logDBPasswordKey,
         logDBNameKey,
+        adminDBNameKey,
+        superUserIDKey,
     }
     var missing []string
 

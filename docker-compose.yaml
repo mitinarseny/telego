@@ -23,6 +23,7 @@ services:
       TELEGO_LOG_DB_USER: bot
       TELEGO_LOG_DB_PASSWORD: Password123!
       TELEGO_LOG_DB_NAME: log
+      TELEGO_ADMIN_DB_NAME: administration
     depends_on:
       - log_db
     networks:

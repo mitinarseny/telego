@@ -22,12 +22,12 @@ type UpdatesRepo struct {
     chats repo.ChatsRepo
 }
 
-type UpdatesRepoDependentRepos struct {
+type UpdatesRepoDependencies struct {
     Users repo.UsersRepo
     Chats repo.ChatsRepo
 }
 
-func (d *UpdatesRepoDependentRepos) Validate() error {
+func (d *UpdatesRepoDependencies) Validate() error {
     shouldBeNotNil := [...]interface{}{
         d.Chats,
         d.Users,
@@ -40,7 +40,7 @@ func (d *UpdatesRepoDependentRepos) Validate() error {
     return nil
 }
 
-func NewUpdatesRepo(db *mongo.Database, deps *UpdatesRepoDependentRepos) (*UpdatesRepo, error) {
+func NewUpdatesRepo(db *mongo.Database, deps *UpdatesRepoDependencies) (*UpdatesRepo, error) {
     if err := deps.Validate(); err != nil {
         return nil, err
     }
