@@ -17,6 +17,7 @@ type User struct {
 
 type UsersRepo interface {
     Create(ctx context.Context, users ...*User) ([]*User, error)
+    CreateIfNotExists(ctx context.Context, users ...*User) ([]*User, error)
 }
 
 func fromTelebotUser(u *tb.User) *User {

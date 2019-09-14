@@ -19,17 +19,36 @@ const (
 type UpdatesRepo struct {
     this  *mongo.Collection
     users repo.UsersRepo
+    chats repo.ChatsRepo
 }
 
 type UpdatesRepoDependentRepos struct {
     Users repo.UsersRepo
+    Chats repo.ChatsRepo
 }
 
-func NewUpdatesRepo(db *mongo.Database, deps *UpdatesRepoDependentRepos) *UpdatesRepo {
+func (d *UpdatesRepoDependentRepos) Validate() error {
+    shouldBeNotNil := [...]interface{}{
+        d.Chats,
+        d.Users,
+    }
+    for _, e := range shouldBeNotNil {
+        if e == nil {
+            return errors.New(fmt.Sprintf("%T should be not nil", e))
+        }
+    }
+    return nil
+}
+
+func NewUpdatesRepo(db *mongo.Database, deps *UpdatesRepoDependentRepos) (*UpdatesRepo, error) {
+    if err := deps.Validate(); err != nil {
+        return nil, err
+    }
     return &UpdatesRepo{
         this:  db.Collection(updatesCollectionName),
         users: deps.Users,
-    }
+        chats: deps.Chats,
+    }, nil
 }
 
 func (r *UpdatesRepo) Create(ctx context.Context, updates ...*repo.Update) ([]*repo.Update, error) {
@@ -37,7 +56,12 @@ func (r *UpdatesRepo) Create(ctx context.Context, updates ...*repo.Update) ([]*r
     for _, update := range updates {
         if msg := update.Message; msg != nil {
             if from := msg.From; from != nil {
-                if _, err := r.users.Create(ctx, from); err != nil {
+                if _, err := r.users.CreateIfNotExists(ctx, from); err != nil {
+                    return nil, err
+                }
+            }
+            if chat := msg.Chat; chat != nil {
+                if _, err := r.chats.Create(ctx, chat); err != nil {
                     return nil, err
                 }
             }

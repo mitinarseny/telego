@@ -5,7 +5,9 @@ import (
 
     "github.com/mitinarseny/telego/tglog/repo"
     log "github.com/sirupsen/logrus"
+    "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/mongo/options"
 )
 
 const (
@@ -13,12 +15,12 @@ const (
 )
 
 type UsersRepo struct {
-    collection *mongo.Collection
+    this *mongo.Collection
 }
 
 func NewUsersRepo(db *mongo.Database) *UsersRepo {
     return &UsersRepo{
-        collection: db.Collection(usersCollectionName),
+        this: db.Collection(usersCollectionName),
     }
 }
 
@@ -27,7 +29,7 @@ func (r *UsersRepo) Create(ctx context.Context, users ...*repo.User) ([]*repo.Us
     for _, user := range users {
         usrs = append(usrs, user)
     }
-    _, err := r.collection.InsertMany(ctx, usrs)
+    _, err := r.this.InsertMany(ctx, usrs)
     if err != nil {
         log.WithFields(log.Fields{
             "context": "UsersRepo",
@@ -39,6 +41,30 @@ func (r *UsersRepo) Create(ctx context.Context, users ...*repo.User) ([]*repo.Us
         "context": "UsersRepo",
         "status":  "CREATED",
         "count":   len(users),
+    }).Info()
+    return users, nil
+}
+
+func (r *UsersRepo) CreateIfNotExists(ctx context.Context, users ...*repo.User) ([]*repo.User, error) {
+    models := make([]mongo.WriteModel, 0, len(users))
+    for _, user := range users {
+        models = append(models,
+            mongo.NewUpdateOneModel().SetFilter(bson.D{
+                {"_id", user.ID},
+            }).SetUpdate(user).SetUpsert(true))
+    }
+    res, err := r.this.BulkWrite(ctx, models, options.BulkWrite().SetOrdered(false))
+    if err != nil {
+        log.WithFields(log.Fields{
+            "context": "UsersRepo",
+            "action":  "CREATE",
+        }).Error(err)
+        return nil, err
+    }
+    log.WithFields(log.Fields{
+        "context": "UsersRepo",
+        "status":  "CREATED",
+        "count":   res.UpsertedCount,
     }).Info()
     return users, nil
 }

@@ -1,6 +1,8 @@
 package repo
 
 import (
+    "context"
+
     tb "gopkg.in/tucnak/telebot.v2"
 )
 
@@ -31,4 +33,8 @@ func fromTelebotChat(c *tb.Chat) *Chat {
         FirstName: &c.FirstName,
         LastName:  &c.LastName,
     }
+}
+
+type ChatsRepo interface {
+    Create(ctx context.Context, chats ...*Chat) ([]*Chat, error)
 }

@@ -100,9 +100,18 @@ func start() error {
 
     mongoDB := mongoClient.Database(viper.GetString(logDBNameKey))
     usersRepo := mongo.NewUsersRepo(mongoDB)
-    updatesRepo := mongo.NewUpdatesRepo(mongoDB, &mongo.UpdatesRepoDependentRepos{
+    chatsRepo := mongo.NewChatsRepo(mongoDB)
+    updatesRepo, err := mongo.NewUpdatesRepo(mongoDB, &mongo.UpdatesRepoDependentRepos{
         Users: usersRepo,
+        Chats: chatsRepo,
     })
+    if err != nil {
+        log.WithFields(log.Fields{
+            "context": "UpdatesRepo",
+            "action":  "CREATE",
+        }).Error(err)
+        return err
+    }
     bufUpdRepo := mongo.NewBufferedUpdatesRepo(updatesRepo)
     defer func() {
         if err := bufUpdRepo.Close(); err != nil {
