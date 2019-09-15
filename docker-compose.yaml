@@ -18,18 +18,18 @@ services:
         GID: 12345
         UID: 54321
     environment:
-      TELEGO_LOG_DB_HOST: log_db
+      TELEGO_LOG_DB_HOST: db
       TELEGO_LOG_DB_PORT: 27017
       TELEGO_LOG_DB_USER: bot
       TELEGO_LOG_DB_PASSWORD: Password123!
       TELEGO_LOG_DB_NAME: log
       TELEGO_ADMIN_DB_NAME: administration
     depends_on:
-      - log_db
+      - db
     networks:
       - telego
 
-  log_db:
+  db:
     image: mongo:4.2.0-bionic
     restart: always
     environment:

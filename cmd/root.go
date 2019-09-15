@@ -12,12 +12,13 @@ import (
     "syscall"
     "time"
 
+    adminrepo "github.com/mitinarseny/telego/administration/repo"
     mongoadmin "github.com/mitinarseny/telego/administration/repo/mongo"
     "github.com/mitinarseny/telego/bot"
     "github.com/mitinarseny/telego/notifier"
     "github.com/mitinarseny/telego/tglog"
     "github.com/mitinarseny/telego/tglog/dblog"
-    "github.com/mitinarseny/telego/tglog/repo"
+    logrepo "github.com/mitinarseny/telego/tglog/repo"
     mongolog "github.com/mitinarseny/telego/tglog/repo/mongo"
     log "github.com/sirupsen/logrus"
     "github.com/spf13/cobra"
@@ -138,7 +139,7 @@ func start() error {
     }
     logPoller := tb.NewMiddlewarePoller(poller, func(update *tb.Update) bool {
         go func() {
-            upd := repo.FromTelebotUpdate(update)
+            upd := logrepo.FromTelebotUpdate(update)
             if err := updatesLogger.LogUpdates(upd); err != nil {
                 log.WithFields(log.Fields{
                     "context": "UpdatesLogger",
@@ -148,7 +149,7 @@ func start() error {
         }()
         return true
     })
-    b, err := tb.NewBot(tb.Settings{
+    tgBot, err := tb.NewBot(tb.Settings{
         URL:    tgEndpoint,
         Token:  botToken,
         Poller: logPoller,
@@ -165,11 +166,14 @@ func start() error {
     }
     botLogEntry.WithFields(log.Fields{
         "status":  "AUTHENTICATED",
-        "account": b.Me.Username,
+        "account": tgBot.Me.Username,
     }).Info()
 
     adminDB := mongoClient.Database(viper.GetString(adminDBNameKey))
     rolesRepo := mongoadmin.NewRolesRepo(adminDB)
+    if _, err := rolesRepo.CreateIfNotExists(context.Background(), adminrepo.SuperuserRole); err != nil {
+        return err
+    }
     adminsRepo, err := mongoadmin.NewAdminsRepo(adminDB, &mongoadmin.AdminsRepoDependencies{
         Roles: rolesRepo,
     })
@@ -180,10 +184,17 @@ func start() error {
         }).Error(err)
         return err
     }
-    if _, err := bot.Configure(b, &bot.Storage{
+    if _, err := adminsRepo.CreateIfNotExists(context.Background(), &adminrepo.Admin{
+        ID:   viper.GetInt64(superUserIDKey),
+        Role: adminrepo.SuperuserRole,
+    }); err != nil {
+        return err
+    }
+    b, err := bot.NewBot(tgBot, &bot.Storage{
         Admins: adminsRepo,
         Roles:  rolesRepo,
-    }, viper.GetInt64(superUserIDKey)); err != nil {
+    })
+    if err != nil {
         botLogEntry.WithField("action", "CONFIGURE").Error(err)
         return err
     }
@@ -231,8 +242,8 @@ func start() error {
         }).Info()
     }()
 
-    statusNotifier.NotifyUp(b.Me.Username)
-    defer statusNotifier.NotifyDown(b.Me.Username)
+    statusNotifier.NotifyUp(tgBot.Me.Username)
+    defer statusNotifier.NotifyDown(tgBot.Me.Username)
 
     gotSig := <-sigCh
     log.WithFields(log.Fields{

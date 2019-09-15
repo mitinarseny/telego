@@ -1,37 +1,58 @@
 package bot
 
 import (
-    "context"
+    log "github.com/sirupsen/logrus"
 
     "github.com/mitinarseny/telego/administration/repo"
-    "github.com/mitinarseny/telego/bot/filters"
-    "github.com/mitinarseny/telego/bot/handlers"
     tb "gopkg.in/tucnak/telebot.v2"
 )
 
-func Configure(b *tb.Bot, storage *Storage, superUserID int64) (*tb.Bot, error) {
-    h := handlers.Handler{
-        Bot: b,
-        Storage: &handlers.Storage{
-            Admins: storage.Admins,
-            Roles:  storage.Roles,
-        },
+type MsgHandler func(*tb.Message) error
+
+type MsgFilter func(*tb.Message) bool
+
+type Storage struct {
+    Admins repo.AdminsRepo
+    Roles  repo.RolesRepo
+}
+
+type Bot struct {
+    tg *tb.Bot
+    storage *Storage
+}
+
+func NewBot(bot *tb.Bot, storage *Storage) (*Bot, error) {
+    b := &Bot{
+        tg:     bot,
+        storage: storage,
     }
-    if _, err := storage.Admins.CreateIfNotExists(context.Background(), &repo.Admin{
-        ID: superUserID,
-        Role: &repo.Role{
-            Name: repo.SuperUserRoleName,
-        },
-    }); err != nil {
-        return nil, err
-    }
-    f := filters.NewFilters(&filters.Storage{
-        Admins: storage.Admins,
-        Roles:  storage.Roles,
-    })
-    b.Handle("/hello", f.WithLog(h.HandleHello))
-    b.Handle("/stats", f.WithLog(f.OnlyFromSuperUsers(h.HandleStats)))
-    b.Handle("/admins", f.WithLog(f.OnlyFromSuperUsers(h.HandleAdmins)))
-    b.Handle("/addadmin", f.WithLog(h.HandleAddAdmin))
+    b.tg.Handle("/start", b.withLogAndFilters(b.handleStart))
+    b.tg.Handle("/stats", b.withLogAndFilters(b.handleStats, b.superusersOnly))
+    b.tg.Handle("/admins", b.withLogAndFilters(b.handleAdmins, b.superusersOnly))
+    b.tg.Handle("/addadmin", b.withLogAndFilters(b.handleAddAdmin, b.superusersOnly))
     return b, nil
+}
+
+func (b *Bot) Start() {
+    b.tg.Start()
+}
+
+func (b *Bot) Stop() {
+    b.tg.Stop()
+}
+
+func (b *Bot) withLogAndFilters(h MsgHandler, filters ...MsgFilter) func(*tb.Message) {
+    return func(m *tb.Message) {
+        for _, f := range filters {
+            if !f(m) {
+                return
+            }
+        }
+        if err := h(m); err != nil {
+            log.WithFields(log.Fields{
+                "context": "BOT",
+                "handler": h,
+            }).Error(err)
+        }
+    }
 }
