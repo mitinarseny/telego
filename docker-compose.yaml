@@ -4,8 +4,7 @@ networks:
   telego:
 
 volumes:
-  go_modules:
-  clickhouse:
+  mongodb:
 
 services:
   bot:
@@ -35,6 +34,8 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: bot
       MONGO_INITDB_ROOT_PASSWORD: Password123!
+    volumes:
+      - mongodb:/data/db
     ports:
       - 27017:27017
     networks:
