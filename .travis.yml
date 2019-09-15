@@ -11,17 +11,14 @@ cache:
   directories:
     - $GOPATH/pkg/mod
 
-before_script:
-  - docker pull hadolint/hadolint
-  - docker-compose pull
-
 script:
-  - docker-compose build
   - >-
-    docker-compose \
-      -f docker-compose.yaml \
-      -f docker-compose.dev.yaml \
-      build
+    docker build \
+      -f Dockerfile.dev \
+      --build-arg _project_path=github.com/mitinarseny/telego \
+      --build-arg GID=12345 \
+      --build-arg UID=54321 \
+      .
 
 notifications:
   webhooks:

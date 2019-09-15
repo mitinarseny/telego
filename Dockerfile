@@ -13,13 +13,11 @@ ENV GO111MODULE=on
 COPY go.mod go.sum ./
 RUN go mod download
 
-
-FROM build-env AS builder
-
+FROM build-env AS copier
 COPY . .
 
+FROM copier AS builder
 RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/bot .
-
 
 FROM alpine:latest AS server
 
