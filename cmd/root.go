@@ -63,6 +63,10 @@ var rootCmd = &cobra.Command{
 }
 
 func start() error {
+    defer log.WithFields(log.Fields{
+        "status": "STOPPED",
+    }).Info()
+
     botLogEntry := log.WithField("context", "BOT")
     notifierLogEntry := log.WithField("context", "NOTIFIER")
 
@@ -248,7 +252,8 @@ func start() error {
     gotSig := <-sigCh
     log.WithFields(log.Fields{
         "signal": gotSig.String(),
-    }).Info("Got signal, stopping...")
+        "status": "STOPPING",
+    }).Info()
 
     return nil
 }

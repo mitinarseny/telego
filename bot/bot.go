@@ -9,7 +9,7 @@ import (
 
 type MsgHandler func(*tb.Message) error
 
-type MsgFilter func(*tb.Message) bool
+type MsgFilter func(*tb.Message) (bool, error)
 
 type Storage struct {
     Admins repo.AdminsRepo
@@ -27,9 +27,9 @@ func NewBot(bot *tb.Bot, storage *Storage) (*Bot, error) {
         storage: storage,
     }
     b.tg.Handle("/start", b.withLogAndFilters(b.handleStart))
-    b.tg.Handle("/stats", b.withLogAndFilters(b.handleStats, b.superusersOnly))
-    b.tg.Handle("/admins", b.withLogAndFilters(b.handleAdmins, b.superusersOnly))
-    b.tg.Handle("/addadmin", b.withLogAndFilters(b.handleAddAdmin, b.superusersOnly))
+    b.tg.Handle("/stats", b.withLogAndFilters(b.handleStats, b.onlyAdminsWithScopes(repo.StatsScope)))
+    b.tg.Handle("/admins", b.withLogAndFilters(b.handleAdmins, b.onlyAdminsWithScopes(repo.AdminsReadScope)))
+    b.tg.Handle("/addadmin", b.withLogAndFilters(b.handleAddAdmin, b.onlyAdminsWithScopes(repo.AdminsScope)))
     return b, nil
 }
 
@@ -44,7 +44,15 @@ func (b *Bot) Stop() {
 func (b *Bot) withLogAndFilters(h MsgHandler, filters ...MsgFilter) func(*tb.Message) {
     return func(m *tb.Message) {
         for _, f := range filters {
-            if !f(m) {
+            passed, err := f(m)
+            if err != nil {
+                log.WithFields(log.Fields{
+                    "context": "BOT",
+                    "filter": f,
+                }).Error(err)
+                return
+            }
+            if !passed {
                 return
             }
         }

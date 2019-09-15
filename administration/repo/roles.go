@@ -2,30 +2,25 @@ package repo
 
 import "context"
 
-type Scope string
+const SuperUserRoleName = "superuser"
 
-const (
-    AdminsScope Scope = "admins"
-    StatsScope  Scope = "stats"
-
-    SuperUserRoleName = "superuser"
-)
-
-var (
-    SuperuserRole = NewRole(SuperUserRoleName,
-        AdminsScope,
-        StatsScope,
-    )
+var SuperuserRole = NewRole(SuperUserRoleName,
+    AdminsScope,
+    StatsScope,
 )
 
 type Role struct {
-    Name   string             `bson:"_id,omitempty"`
-    Scopes map[Scope]struct{} `bson:"scopes,omitempty"`
+    Name   string `bson:"_id,omitempty"`
+    Scopes Scopes `bson:"scopes,omitempty"`
 }
 
-func NewRole(name string, scopes ...Scope) *Role{
+func (r *Role) HasScopes(scopes ...Scope) bool {
+    return r.Scopes.Has(scopes...)
+}
+
+func NewRole(name string, scopes ...Scope) *Role {
     r := &Role{
-        Name: name,
+        Name:   name,
         Scopes: make(map[Scope]struct{}, len(scopes)),
     }
     for _, s := range scopes {

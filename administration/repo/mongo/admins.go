@@ -52,7 +52,7 @@ func (r *AdminsRepo) Create(ctx context.Context, admins ...*repo.Admin) ([]*repo
     for _, admin := range admins {
         adms = append(adms, admin)
     }
-    res, err := r.this.InsertMany(ctx, adms)
+    res, err := r.this.InsertMany(ctx, adms) // TODO: custom struct to create roles in other collection
     if err != nil {
         log.WithFields(log.Fields{
             "context": "AdminsRepo",
@@ -74,7 +74,7 @@ func (r *AdminsRepo) CreateIfNotExists(ctx context.Context, admins ...*repo.Admi
         models = append(models,
             mongo.NewUpdateOneModel().SetFilter(bson.D{
                 {"_id", admin.ID},
-            }).SetUpdate(admin).SetUpsert(true))
+            }).SetUpdate(admin).SetUpsert(true)) // TODO: custom struct to create roles in other collection
     }
     res, err := r.this.BulkWrite(ctx, models, options.BulkWrite().SetOrdered(false))
     if err != nil {
@@ -166,20 +166,27 @@ func (r *AdminsRepo) GetByID(ctx context.Context, adminID int64) (*repo.Admin, e
     return admins[0], nil
 }
 
-func (r *AdminsRepo) HasScopesByID(ctx context.Context, adminID int64, scopes ...repo.Scope) (bool, error) {
+func (r *AdminsRepo) GetRoleByID(ctx context.Context, adminID int64) (*repo.Role, error) {
     admin, err := r.GetByID(ctx, adminID)
+    if err != nil {
+        return nil, err
+    }
+    if admin.Role == nil {
+        log.WithFields(log.Fields{
+            "context": "AdminsRepo",
+            "id":      admin.ID,
+        }).Error("role is empty")
+        return nil, errors.New("empty role")
+    }
+    return admin.Role, nil
+}
+
+func (r *AdminsRepo) HasScopesByID(ctx context.Context, adminID int64, scopes ...repo.Scope) (bool, error) {
+    role, err := r.GetRoleByID(ctx, adminID)
     if err != nil {
         return false, err
     }
-    if admin.Role == nil {
-        return false, nil
-    }
-    for _, s := range scopes {
-        if _, found := admin.Role.Scopes[s]; !found {
-            return false, nil
-        }
-    }
-    return true, nil
+    return role.HasScopes(scopes...), nil
 }
 
 func (r *AdminsRepo) DeleteByIDs(ctx context.Context, adminIDs ...int64) error {

@@ -24,6 +24,7 @@ type AdminsRepo interface {
     GetAll(ctx context.Context) ([]*Admin, error)
     GetByID(ctx context.Context, adminID int64) (*Admin, error)
     GetByIDs(ctx context.Context, adminIDs ...int64) ([]*Admin, error)
+    GetRoleByID(ctx context.Context, adminID int64) (*Role, error)
     HasScopesByID(ctx context.Context, adminID int64, scopes ...Scope) (bool, error)
     DeleteByIDs(ctx context.Context, adminIDs ...int64) error
 }
