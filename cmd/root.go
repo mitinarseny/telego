@@ -194,9 +194,11 @@ func start() error {
     }); err != nil {
         return err
     }
-    b, err := bot.NewBot(tgBot, &bot.Storage{
-        Admins: adminsRepo,
-        Roles:  rolesRepo,
+    b, err := bot.NewBot(tgBot, &bot.Params{
+        Storage: &bot.Storage{
+            Admins: adminsRepo,
+            Roles:  rolesRepo,
+        }, // TODO: pass logger
     })
     if err != nil {
         botLogEntry.WithField("action", "CONFIGURE").Error(err)
