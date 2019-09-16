@@ -3,7 +3,7 @@
     <img src="_assets/logo.png" alt="telego logo" width="20%" />
   </a>
   <h1 align="center">telego</h1>
-  <p align="center">Docker Go template for creating <a href="https://core.telegram.org/bots">Telegram Bots</a> with clean architecture</p>
+  <p align="center">Docker Go template for creating <a href="https://core.telegram.org/bots">Telegram Bots</a> with clean architecture.</p>
   <p align="center">
     <a href="https://travis-ci.org/mitinarseny/telego"><img alt="TravisCI" src="https://img.shields.io/travis/mitinarseny/telego/master.svg?style=flat-square&logo=travis-ci"></a>
     <a href="https://app.codacy.com/app/mitinarseny/telego"><img alt="Codacy" src="https://img.shields.io/codacy/grade/0702d21a638d4fa78328d988bdcedb19/master?style=flat-square&logo=codacy"></a>
