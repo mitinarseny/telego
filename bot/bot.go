@@ -34,20 +34,16 @@ func NewBot(bot *tb.Bot, params *Params) (*Bot, error) {
         Logger: params.Logger,
     }
 
-    adminsOnly := filters.AdminsOnly{
-        Admins: params.Storage.Admins,
-    }
     bot.Handle("/start", handlers.MsgWithLog(b, &handlers.Start{
         B: bot,
     }))
-
-    bot.Handle("/admins", handlers.MsgWithLog(b, handlers.MsgWithFilters(&handlers.Admins{
+    bot.Handle("/admins", handlers.MsgWithLog(b, handlers.WithMsgFilters(&handlers.Admins{
         Logger: b,
         B:      bot,
         Storage: &handlers.AdminsStorage{
             Admins: b.s.Admins,
         },
-    }, adminsOnly.WithScopes(repo.AdminsReadScope))))
+    }, filters.WithSender().IsAdminWithScopes(b.s.Admins, repo.AdminsReadScope))))
     return b, nil
 }
 

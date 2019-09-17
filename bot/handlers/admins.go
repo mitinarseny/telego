@@ -2,10 +2,12 @@ package handlers
 
 import (
     "context"
-    "errors"
     "fmt"
+    "strconv"
 
     "github.com/mitinarseny/telego/administration/repo"
+    "github.com/mitinarseny/telego/bot/filters"
+    "github.com/pkg/errors"
     tb "gopkg.in/tucnak/telebot.v2"
 )
 
@@ -24,32 +26,45 @@ func (h *Admins) HandleMsg(m *tb.Message) error {
     if err != nil {
         return err
     }
-    inlineKeys := h.makeAdminsBtns(adms)
+    inlineKeys, err := h.makeAdminsBtns(adms)
+    if err != nil {
+        return err
+    }
     _, err = h.B.Send(m.Sender, "Here is the list of admins:", &tb.ReplyMarkup{
         InlineKeyboard: inlineKeys,
     })
     return err
 }
 
-func (h *Admins) makeAdminsBtns(admins []*repo.Admin) [][]tb.InlineButton {
+func (h *Admins) makeAdminsBtns(admins []*repo.Admin) ([][]tb.InlineButton, error) {
     keyboard := make([][]tb.InlineButton, 0, len(admins)/2+len(admins)%2)
     for i, admin := range admins {
         if i%2 == 0 {
             keyboard = append(keyboard, make([]tb.InlineButton, 0, 2))
         }
-        btn := tb.InlineButton{
-            Unique: fmt.Sprintf("%d", admin.ID), // TODO: more unique
-            Text:   fmt.Sprintf("%d (%s)", admin.ID, admin.Role.Name),
+        strAdminID := strconv.FormatInt(admin.ID, 10)
+        btnUsername := strAdminID
+        chat, err := h.B.ChatByID(strAdminID)
+        if err != nil {
+            return nil, errors.Wrapf(err, "can not get chat with %q", strAdminID)
         }
-        h.B.Handle(&btn, CallbackWithLog(h, &ChosenAdmin{
+        if chat.Username == "" {
+            btnUsername = chat.Username
+        }
+        btn := tb.InlineButton{
+            Unique: "getAdmin" + strAdminID, // TODO: more unique
+            Text:   fmt.Sprintf("%s (%s)", btnUsername, admin.Role.Name),
+            Data:   strAdminID,
+        }
+        h.B.Handle(&btn, CallbackWithLog(h, WithCallbackFilters(&ChosenAdmin{
             b: h.B,
             storage: &ChosenAdminStorage{
                 Admins: h.Storage.Admins,
             },
-        }))
+        }, filters.WithSender().IsAdminWithScopes(h.Storage.Admins, repo.AdminsReadScope))))
         keyboard[i/2] = append(keyboard[i/2], btn)
     }
-    return keyboard
+    return keyboard, nil
 }
 
 type ChosenAdminStorage struct {
@@ -62,5 +77,14 @@ type ChosenAdmin struct {
 }
 
 func (h *ChosenAdmin) HandleCallback(c *tb.Callback) error {
+    // adminID, err := strconv.ParseInt(c.Data, 10, 64)
+    // if err != nil {
+    //     return errors.Wrap(err, "can not parse adminID")
+    // }
+    // admin, err := h.storage.Admins.GetByID(context.Background(), adminID)
+    // if err != nil {
+    //     return err
+    // }
+
     return errors.New("ChosenAdmin.HandleCallback is not implemented yet")
 }
