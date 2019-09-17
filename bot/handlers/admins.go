@@ -39,24 +39,28 @@ func (h *Admins) HandleMsg(m *tb.Message) error {
 func (h *Admins) makeAdminsBtns(admins []*repo.Admin) ([][]tb.InlineButton, error) {
     keyboard := make([][]tb.InlineButton, 0, len(admins)/2+len(admins)%2)
     for i, admin := range admins {
+        if admin.Role == nil {
+            return nil, errors.Errorf("admin %d has no role", admin.ID)
+        }
         if i%2 == 0 {
             keyboard = append(keyboard, make([]tb.InlineButton, 0, 2))
         }
         strAdminID := strconv.FormatInt(admin.ID, 10)
-        btnUsername := strAdminID
         chat, err := h.B.ChatByID(strAdminID)
         if err != nil {
             return nil, errors.Wrapf(err, "can not get chat with %q", strAdminID)
         }
-        if chat.Username == "" {
-            btnUsername = chat.Username
+        adminName := chat.FirstName
+        if chat.LastName != "" {
+            adminName += " " + chat.LastName
         }
+        adminName += " (" + admin.Role.Name + ")"
         btn := tb.InlineButton{
-            Unique: "getAdmin" + strAdminID, // TODO: more unique
-            Text:   fmt.Sprintf("%s (%s)", btnUsername, admin.Role.Name),
+            Unique: "adminChosen",
+            Text:   adminName,
             Data:   strAdminID,
         }
-        h.B.Handle(&btn, CallbackWithLog(h, WithCallbackFilters(&ChosenAdmin{
+        h.B.Handle(&btn, CallbackWithLog(h, WithCallbackFilters(&adminChosen{
             b: h.B,
             storage: &ChosenAdminStorage{
                 Admins: h.Storage.Admins,
@@ -71,20 +75,44 @@ type ChosenAdminStorage struct {
     Admins repo.AdminsRepo
 }
 
-type ChosenAdmin struct {
+type adminChosen struct {
     b       *tb.Bot
     storage *ChosenAdminStorage
 }
 
-func (h *ChosenAdmin) HandleCallback(c *tb.Callback) error {
-    // adminID, err := strconv.ParseInt(c.Data, 10, 64)
-    // if err != nil {
-    //     return errors.Wrap(err, "can not parse adminID")
-    // }
-    // admin, err := h.storage.Admins.GetByID(context.Background(), adminID)
-    // if err != nil {
-    //     return err
-    // }
+func (h *adminChosen) HandleCallback(c *tb.Callback) error {
+    adminID, err := strconv.ParseInt(c.Data, 10, 64)
+    if err != nil {
+        return errors.Wrap(err, "can not parse adminID")
+    }
+    admin, err := h.storage.Admins.GetByID(context.Background(), adminID)
+    if err != nil {
+        return err
+    }
+    text, err := h.adminDescription(admin)
+    if err != nil {
+        return err
+    }
+    _, err = h.b.Edit(c.Message, text, tb.ModeMarkdown)
+    return err
+}
 
-    return errors.New("ChosenAdmin.HandleCallback is not implemented yet")
+const (
+    AdminTemplate = `*Admin:*
+*ID:* %s
+*User:* %s`
+)
+
+func (h *adminChosen) adminDescription(admin *repo.Admin) (string, error) {
+    strAdminID := strconv.FormatInt(admin.ID, 10)
+    chat, err := h.b.ChatByID(strAdminID)
+    if err != nil {
+        return "", errors.Wrapf(err, "can not get chat with %q", strAdminID)
+    }
+    name := "[" + chat.FirstName
+    if chat.LastName != "" {
+        name += " " + chat.LastName
+    }
+    name += "](tg://user?id=" + strAdminID + ")"
+    return fmt.Sprintf(AdminTemplate, strAdminID, name), nil
 }

@@ -16,9 +16,11 @@ type sender struct {
 
 func (f *sender) FilterMsg(m *tb.Message) (bool, error) {
     if f.msgParent != nil {
-        if passed, err := f.msgParent.FilterMsg(m); err != nil {
+        passed, err := f.msgParent.FilterMsg(m)
+        switch {
+        case err != nil:
             return false, err
-        } else if !passed {
+        case !passed:
             return false, nil
         }
     }
@@ -27,9 +29,11 @@ func (f *sender) FilterMsg(m *tb.Message) (bool, error) {
 
 func (f *sender) FilterCallback(c *tb.Callback) (bool, error) {
     if f.callbackParent != nil {
-        if passed, err := f.callbackParent.FilterCallback(c); err != nil {
+        passed, err := f.callbackParent.FilterCallback(c)
+        switch {
+        case err != nil:
             return false, err
-        } else if !passed {
+        case !passed:
             return false, nil
         }
     }
