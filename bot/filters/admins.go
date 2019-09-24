@@ -15,8 +15,7 @@ type isAdmin struct {
 }
 
 func (f *isAdmin) isAdmin(adminID int64) (bool, error) {
-    _, err := f.admins.GetByID(context.Background(), adminID)
-    if err != nil {
+    if _, err := f.admins.GetByID(context.Background(), adminID); err != nil {
         switch err.(type) {
         case repo.AdminNotFound:
             return false, nil
@@ -29,8 +28,7 @@ func (f *isAdmin) isAdmin(adminID int64) (bool, error) {
 
 func (f *isAdmin) FilterMsg(m *tb.Message) (bool, error) {
     if f.msgParent != nil {
-        passed, err := f.msgParent.FilterMsg(m)
-        switch {
+        switch passed, err := f.msgParent.FilterMsg(m); {
         case err != nil:
             return false, err
         case !passed:
@@ -42,8 +40,7 @@ func (f *isAdmin) FilterMsg(m *tb.Message) (bool, error) {
 
 func (f *isAdmin) FilterCallback(c *tb.Callback) (bool, error) {
     if f.callbackParent != nil {
-        passed, err := f.callbackParent.FilterCallback(c)
-        switch {
+        switch passed, err := f.callbackParent.FilterCallback(c) ;{
         case err != nil:
             return false, err
         case !passed:
@@ -79,8 +76,7 @@ func (f *hasScopes) hasScopes(adminID int64) (bool, error) {
 
 func (f *hasScopes) FilterMsg(m *tb.Message) (bool, error) {
     if f.msgParent != nil {
-        passed, err := f.msgParent.FilterMsg(m)
-        switch {
+        switch passed, err := f.msgParent.FilterMsg(m); {
         case err != nil:
             return false, err
         case !passed:
@@ -92,8 +88,7 @@ func (f *hasScopes) FilterMsg(m *tb.Message) (bool, error) {
 
 func (f *hasScopes) FilterCallback(c *tb.Callback) (bool, error) {
     if f.callbackParent != nil {
-        passed, err := f.callbackParent.FilterCallback(c)
-        switch {
+        switch passed, err := f.callbackParent.FilterCallback(c); {
         case err != nil:
             return false, err
         case !passed:
@@ -126,8 +121,7 @@ func (f *isAdminWithScopes) isAdminWithScopes(adminID int64) (bool, error) {
 
 func (f *isAdminWithScopes) FilterMsg(m *tb.Message) (bool, error) {
     if f.msgParent != nil {
-        passed, err := f.msgParent.FilterMsg(m)
-        switch {
+        switch passed, err := f.msgParent.FilterMsg(m); {
         case err != nil:
             return false, err
         case !passed:
@@ -139,8 +133,7 @@ func (f *isAdminWithScopes) FilterMsg(m *tb.Message) (bool, error) {
 
 func (f *isAdminWithScopes) FilterCallback(c *tb.Callback) (bool, error) {
     if f.callbackParent != nil {
-        passed, err := f.callbackParent.FilterCallback(c)
-        switch {
+        switch passed, err := f.callbackParent.FilterCallback(c); {
         case err != nil:
             return false, err
         case !passed:

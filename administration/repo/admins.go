@@ -17,10 +17,15 @@ type Admin struct {
     Role *Role `bson:"role,omitempty"`
 }
 
+func (a *Admin) HadScopes(scopes ...Scope) bool {
+    return a.Role.HasScopes(scopes...)
+}
+
 type AdminsRepo interface {
     Create(ctx context.Context, admins ...*Admin) ([]*Admin, error)
     CreateIfNotExists(ctx context.Context, admins ...*Admin) ([]*Admin, error)
-    ChangeRoleByIDs(ctx context.Context, role *Role, adminIDs ...int64) ([]*Admin, error)
+    AssignRoleByID(ctx context.Context, roleName string, adminID int64) (*Admin, error)
+    AssignRoleByIDs(ctx context.Context, roleName string, adminIDs ...int64) ([]*Admin, error)
     GetAll(ctx context.Context) ([]*Admin, error)
     GetByID(ctx context.Context, adminID int64) (*Admin, error)
     GetByIDs(ctx context.Context, adminIDs ...int64) ([]*Admin, error)

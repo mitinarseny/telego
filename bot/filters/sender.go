@@ -16,8 +16,7 @@ type sender struct {
 
 func (f *sender) FilterMsg(m *tb.Message) (bool, error) {
     if f.msgParent != nil {
-        passed, err := f.msgParent.FilterMsg(m)
-        switch {
+        switch passed, err := f.msgParent.FilterMsg(m); {
         case err != nil:
             return false, err
         case !passed:
@@ -29,8 +28,7 @@ func (f *sender) FilterMsg(m *tb.Message) (bool, error) {
 
 func (f *sender) FilterCallback(c *tb.Callback) (bool, error) {
     if f.callbackParent != nil {
-        passed, err := f.callbackParent.FilterCallback(c)
-        switch {
+        switch passed, err := f.callbackParent.FilterCallback(c); {
         case err != nil:
             return false, err
         case !passed:
@@ -50,10 +48,10 @@ func (f *sender) IsAdmin(r repo.AdminsRepo) *isAdmin {
 
 func (f *sender) IsAdminWithScopes(r repo.AdminsRepo, scopes ...repo.Scope) *isAdminWithScopes {
     return &isAdminWithScopes{
-        callbackParent:f,
-        msgParent:f,
+        callbackParent: f,
+        msgParent:      f,
 
-        admins:r,
+        admins: r,
         scopes: scopes,
     }
 }

@@ -2,6 +2,8 @@ package mongo
 
 import (
     "context"
+    "errors"
+    "fmt"
 
     "github.com/mitinarseny/telego/administration/repo"
     log "github.com/sirupsen/logrus"
@@ -18,7 +20,7 @@ type RolesRepo struct {
     this *mongo.Collection
 }
 
-func (r RolesRepo) Create(ctx context.Context, roles ...*repo.Role) ([]*repo.Role, error) {
+func (r *RolesRepo) Create(ctx context.Context, roles ...*repo.Role) ([]*repo.Role, error) {
     rls := make([]interface{}, 0, len(roles))
     for _, role := range roles {
         rls = append(rls, role)
@@ -39,13 +41,16 @@ func (r RolesRepo) Create(ctx context.Context, roles ...*repo.Role) ([]*repo.Rol
     return roles, nil
 }
 
-func (r RolesRepo) CreateIfNotExists(ctx context.Context, roles ...*repo.Role) ([]*repo.Role, error) {
+func (r *RolesRepo) CreateIfNotExists(ctx context.Context, roles ...*repo.Role) ([]*repo.Role, error) {
     models := make([]mongo.WriteModel, 0, len(roles))
     for _, role := range roles {
         models = append(models,
-            mongo.NewUpdateOneModel().SetFilter(bson.D{
-                {"_id", role.Name},
-            }).SetUpdate(role).SetUpsert(true))
+            mongo.NewUpdateOneModel().
+                SetFilter(bson.D{
+                    {"_id", role.Name},
+                }).
+                SetUpdate(role).
+                SetUpsert(true))
     }
     res, err := r.this.BulkWrite(ctx, models, options.BulkWrite().SetOrdered(false))
     if err != nil {
@@ -65,7 +70,37 @@ func (r RolesRepo) CreateIfNotExists(ctx context.Context, roles ...*repo.Role) (
     return roles, nil
 }
 
-func (r RolesRepo) GetByNames(ctx context.Context, names ...string) ([]*repo.Role, error) {
+func (r *RolesRepo) GetAll(ctx context.Context) ([]*repo.Role, error) {
+    cursor, err := r.this.Find(ctx, bson.D{})
+    if err != nil {
+        log.WithFields(log.Fields{
+            "context": "RolesRepo",
+            "action":  "GetAll",
+        }).Error(err)
+        return nil, err
+    }
+    var roles []*repo.Role
+    if err := cursor.All(ctx, &roles); err != nil {
+        return nil, err
+    }
+    return roles, nil
+}
+
+func (r *RolesRepo) GetByName(ctx context.Context, name string) (*repo.Role, error) {
+    roles, err := r.GetByNames(ctx, name)
+    if err != nil {
+        return nil, err
+    }
+    switch {
+    case len(roles) == 0:
+        return nil, errors.New(fmt.Sprintf("role %q not found", name))
+    case len(roles) > 1:
+        return nil, errors.New(fmt.Sprintf("more than one role with name %q found", name))
+    }
+    return roles[0], nil
+}
+
+func (r *RolesRepo) GetByNames(ctx context.Context, names ...string) ([]*repo.Role, error) {
     cursor, err := r.this.Find(ctx, bson.D{
         {"_id", bson.D{
             {"$in", names},
@@ -85,7 +120,7 @@ func (r RolesRepo) GetByNames(ctx context.Context, names ...string) ([]*repo.Rol
     return roles, nil
 }
 
-func (r RolesRepo) AddScopes(ctx context.Context, scopes []repo.Scope, names ...string) ([]*repo.Role, error) {
+func (r *RolesRepo) AddScopes(ctx context.Context, scopes []repo.Scope, names ...string) ([]*repo.Role, error) {
     res, err := r.this.UpdateMany(ctx, bson.D{
         {"_id", bson.D{
             {"$in", names},
@@ -112,7 +147,7 @@ func (r RolesRepo) AddScopes(ctx context.Context, scopes []repo.Scope, names ...
     return r.GetByNames(ctx, names...)
 }
 
-func (r RolesRepo) SetScopes(ctx context.Context, scopes []repo.Scope, names ...string) ([]*repo.Role, error) {
+func (r *RolesRepo) SetScopes(ctx context.Context, scopes []repo.Scope, names ...string) ([]*repo.Role, error) {
     res, err := r.this.UpdateMany(ctx, bson.D{
         {"_id", bson.D{
             {"$in", names},
@@ -137,7 +172,7 @@ func (r RolesRepo) SetScopes(ctx context.Context, scopes []repo.Scope, names ...
     return r.GetByNames(ctx, names...)
 }
 
-func (r RolesRepo) DeleteByNames(ctx context.Context, names ...string) error {
+func (r *RolesRepo) DeleteByNames(ctx context.Context, names ...string) error {
     res, err := r.this.DeleteMany(ctx, bson.D{
         {"_id", bson.D{
             {"$in", names},

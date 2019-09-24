@@ -42,6 +42,7 @@ func NewBot(bot *tb.Bot, params *Params) (*Bot, error) {
         B:      bot,
         Storage: &handlers.AdminsStorage{
             Admins: b.s.Admins,
+            Roles:  b.s.Roles,
         },
     }, filters.WithSender().IsAdminWithScopes(b.s.Admins, repo.AdminsReadScope))))
     return b, nil

@@ -1,5 +1,9 @@
 package repo
 
+import (
+    "go.mongodb.org/mongo-driver/bson"
+)
+
 const (
     AdminsScope     Scope = "admins"
     AdminsReadScope Scope = "admins.read"
@@ -25,6 +29,25 @@ func (s Scope) Implies() Scopes {
 }
 
 type Scopes map[Scope]struct{}
+
+func (s Scopes) MarshalBSON() ([]byte, error) {
+    aux := make(bson.A, 0, len(s))
+    for sc := range s {
+        aux = append(aux, sc)
+    }
+    return bson.Marshal(aux)
+}
+
+func (s Scopes) UnmarshalBSON(data []byte) error {
+    aux := make([]Scope, 0)
+    if err := bson.Unmarshal(data, &aux); err != nil {
+        return err
+    }
+    for _, sc := range aux {
+        s[sc] = struct{}{}
+    }
+    return nil
+}
 
 func NewScopes(scopes ...Scope) Scopes {
     res := make(Scopes, len(scopes))

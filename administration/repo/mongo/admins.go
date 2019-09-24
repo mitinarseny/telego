@@ -4,6 +4,7 @@ import (
     "context"
     "errors"
     "fmt"
+    "strconv"
 
     "github.com/mitinarseny/telego/administration/repo"
     log "github.com/sirupsen/logrus"
@@ -48,11 +49,19 @@ func NewAdminsRepo(db *mongo.Database, deps *AdminsRepoDependencies) (*AdminsRep
 }
 
 func (r *AdminsRepo) Create(ctx context.Context, admins ...*repo.Admin) ([]*repo.Admin, error) {
-    adms := make([]interface{}, 0, len(admins))
+    models := make([]interface{}, 0, len(admins))
+    roles := make([]*repo.Role, 0, len(admins))
     for _, admin := range admins {
-        adms = append(adms, admin)
+        models = append(models, &adminModel{
+            ID:       admin.ID,
+            RoleName: admin.Role.Name,
+        })
+        roles = append(roles, admin.Role)
     }
-    res, err := r.this.InsertMany(ctx, adms) // TODO: custom struct to create roles in other collection
+    if _, err := r.roles.CreateIfNotExists(ctx, roles...); err != nil {
+        return nil, err
+    }
+    res, err := r.this.InsertMany(ctx, models)
     if err != nil {
         log.WithFields(log.Fields{
             "context": "AdminsRepo",
@@ -68,13 +77,26 @@ func (r *AdminsRepo) Create(ctx context.Context, admins ...*repo.Admin) ([]*repo
     return admins, nil
 }
 
+type adminModel struct {
+    ID       int64  `bson:"_id, omitempty"`
+    RoleName string `bson:"roleName,omitempty"`
+}
+
 func (r *AdminsRepo) CreateIfNotExists(ctx context.Context, admins ...*repo.Admin) ([]*repo.Admin, error) {
     models := make([]mongo.WriteModel, 0, len(admins))
+    roles := make([]*repo.Role, 0, len(admins))
     for _, admin := range admins {
+        roles = append(roles, admin.Role)
         models = append(models,
             mongo.NewUpdateOneModel().SetFilter(bson.D{
                 {"_id", admin.ID},
-            }).SetUpdate(admin).SetUpsert(true)) // TODO: custom struct to create roles in other collection
+            }).SetUpdate(&adminModel{
+                ID:       admin.ID,
+                RoleName: admin.Role.Name,
+            }).SetUpsert(true))
+    }
+    if _, err := r.roles.CreateIfNotExists(ctx, roles...); err != nil {
+        return nil, err
     }
     res, err := r.this.BulkWrite(ctx, models, options.BulkWrite().SetOrdered(false))
     if err != nil {
@@ -94,33 +116,66 @@ func (r *AdminsRepo) CreateIfNotExists(ctx context.Context, admins ...*repo.Admi
     return admins, nil
 }
 
-func (r *AdminsRepo) ChangeRoleByIDs(ctx context.Context, role *repo.Role, adminIDs ...int64) ([]*repo.Admin, error) {
+func (r *AdminsRepo) AssignRoleByID(ctx context.Context, roleName string, adminID int64) (*repo.Admin, error) {
+    admins, err := r.AssignRoleByIDs(ctx, roleName, adminID)
+    if err != nil {
+        return nil, err
+    }
+    switch {
+    case len(admins) == 0:
+        return nil, errors.New(fmt.Sprintf("admin %q not found", strconv.FormatInt(adminID, 10)))
+    case len(admins) > 1:
+        return nil, errors.New(fmt.Sprintf("more than one admin with ID %q found", strconv.FormatInt(adminID, 10)))
+    }
+    return admins[0], nil
+}
+
+func (r *AdminsRepo) AssignRoleByIDs(ctx context.Context, roleName string, adminIDs ...int64) ([]*repo.Admin, error) {
+    role, err := r.roles.GetByName(ctx, roleName)
+    if err != nil {
+        return nil, err
+    }
     res, err := r.this.UpdateMany(ctx, bson.D{
         {"_id", bson.D{
             {"$in", adminIDs},
         }},
     }, bson.D{
         {"$set", bson.D{
-            {"role", role.Name},
+            {"roleName", role.Name},
         }},
     })
     if err != nil {
         log.WithFields(log.Fields{
             "context": "AdminsRepo",
-            "action":  "ChangeRoleByIDs",
+            "action":  "AssignRoleByIDs",
         }).Error(err)
         return nil, err
     }
     log.WithFields(log.Fields{
         "context": "UpdatesRepo",
-        "action":  "ChangeRoleByIDs",
+        "action":  "AssignRoleByIDs",
         "count":   res.ModifiedCount,
     }).Info()
     return r.GetByIDs(ctx, adminIDs...)
 }
 
 func (r *AdminsRepo) GetAll(ctx context.Context) ([]*repo.Admin, error) {
-    cursor, err := r.this.Find(ctx, bson.D{}) // TODO: join roles
+    cursor, err := r.this.Aggregate(ctx, bson.A{
+        bson.D{
+            {"$lookup", bson.D{
+                {"from", rolesCollectionName},
+                {"localField", "roleName"},
+                {"foreignField", "_id"},
+                {"as", "role"},
+            }},
+        }, bson.D{
+            {"$project", bson.D{
+                {"role", bson.D{
+                    {"$arrayElemAt", bson.A{"$role", 0}},
+                }},
+            }},
+        },
+    })
     if err != nil {
         log.WithFields(log.Fields{
             "context": "AdminsRepo",
@@ -136,11 +191,26 @@ func (r *AdminsRepo) GetAll(ctx context.Context) ([]*repo.Admin, error) {
 }
 
 func (r *AdminsRepo) GetByIDs(ctx context.Context, adminIDs ...int64) ([]*repo.Admin, error) {
-    cursor, err := r.this.Find(ctx, bson.D{
-        {"_id", bson.D{
-            {"$in", adminIDs},
-        }},
-    }) // TODO: join roles
+    cursor, err := r.this.Aggregate(ctx, bson.A{
+        bson.D{{"$match", bson.D{
+            {"_id", bson.D{
+                {"$in", adminIDs},
+            }},
+        }}}, bson.D{
+            {"$lookup", bson.D{
+                {"from", rolesCollectionName},
+                {"localField", "roleName"},
+                {"foreignField", "_id"},
+                {"as", "role"},
+            }},
+        }, bson.D{
+            {"$project", bson.D{
+                {"role", bson.D{
+                    {"$arrayElemAt", bson.A{"$role", 0}},
+                }},
+            }},
+        },
+    })
     if err != nil {
         log.WithFields(log.Fields{
             "context": "AdminsRepo",
