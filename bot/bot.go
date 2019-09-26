@@ -106,6 +106,11 @@ func (b *Bot) setSuperuser(userID int64) error {
     _, err := b.s.Admins.CreateIfNotExists(context.Background(), &administration.Admin{
         ID:   userID,
         Role: administration.SuperuserRole,
+        Notifications: administration.NotificationsPreferences{
+            Status: []administration.NotifierType{
+                administration.TelegramNotificationDest,
+            },
+        },
     })
     return err
 }
@@ -125,11 +130,9 @@ func (b *Bot) setupHandlers() {
 }
 
 func (b *Bot) Start() {
-    defer func() {
-        if err := b.Notifier.NotifyStatus(admins.StatusUp); err != nil {
-            b.errLogger.Log(err)
-        }
-    }()
+    if err := b.Notifier.NotifyStatus(admins.StatusUp); err != nil {
+        b.errLogger.Log(err)
+    }
     b.tg.Start()
 }
 
