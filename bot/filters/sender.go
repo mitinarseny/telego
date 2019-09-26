@@ -1,7 +1,7 @@
 package filters
 
 import (
-    "github.com/mitinarseny/telego/administration/repo"
+    "github.com/mitinarseny/telego/bot/repo/administration"
     tb "gopkg.in/tucnak/telebot.v2"
 )
 
@@ -38,7 +38,7 @@ func (f *sender) FilterCallback(c *tb.Callback) (bool, error) {
     return c.Sender != nil, nil
 }
 
-func (f *sender) IsAdmin(r repo.AdminsRepo) *isAdmin {
+func (f *sender) IsAdmin(r administration.AdminsRepo) *isAdmin {
     return &isAdmin{
         msgParent:      f,
         callbackParent: f,
@@ -46,7 +46,7 @@ func (f *sender) IsAdmin(r repo.AdminsRepo) *isAdmin {
     }
 }
 
-func (f *sender) IsAdminWithScopes(r repo.AdminsRepo, scopes ...repo.Scope) *isAdminWithScopes {
+func (f *sender) IsAdminWithScopes(r administration.AdminsRepo, scopes ...administration.Scope) *isAdminWithScopes {
     return &isAdminWithScopes{
         callbackParent: f,
         msgParent:      f,

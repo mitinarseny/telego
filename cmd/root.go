@@ -2,31 +2,25 @@ package cmd
 
 import (
     "context"
-    "database/sql"
-    "net/http"
-    "net/url"
     "os"
     "os/signal"
-    "strconv"
     "strings"
     "syscall"
     "time"
 
-    adminrepo "github.com/mitinarseny/telego/administration/repo"
-    mongoadmin "github.com/mitinarseny/telego/administration/repo/mongo"
     "github.com/mitinarseny/telego/bot"
-    "github.com/mitinarseny/telego/notifier"
-    "github.com/mitinarseny/telego/tglog"
-    "github.com/mitinarseny/telego/tglog/dblog"
-    logrepo "github.com/mitinarseny/telego/tglog/repo"
-    mongolog "github.com/mitinarseny/telego/tglog/repo/mongo"
+    "github.com/mitinarseny/telego/bot/logging/errors"
+    mongolog "github.com/mitinarseny/telego/bot/logging/errors/mongo"
+    "github.com/mitinarseny/telego/bot/logging/errors/stderr"
+    repolog "github.com/mitinarseny/telego/bot/logging/updates/repo"
+    mongoadmin "github.com/mitinarseny/telego/bot/repo/administration/mongo"
+    mongotg "github.com/mitinarseny/telego/bot/repo/tg/mongo"
     log "github.com/sirupsen/logrus"
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
     mongoDriver "go.mongodb.org/mongo-driver/mongo"
     "go.mongodb.org/mongo-driver/mongo/options"
     "go.mongodb.org/mongo-driver/mongo/readpref"
-    tb "gopkg.in/tucnak/telebot.v2"
 )
 
 const (
@@ -34,18 +28,13 @@ const (
 
     botTokenKey = "bot.token"
 
-    notifierBotTokenKey  = "notifier.bot.token"
-    notifierBotChatIDKey = "notifier.chat.id"
+    dbHostKey     = "db.host"
+    dbPortKey     = "db.port"
+    dbUserKey     = "db.user"
+    dbPasswordKey = "db.password"
+    dbNameKey     = "db.name"
 
-    logDBHostKey     = "log.db.host"
-    logDBPortKey     = "log.db.port"
-    logDBUserKey     = "log.db.user"
-    logDBPasswordKey = "log.db.password"
-    logDBNameKey     = "log.db.name"
-
-    adminDBNameKey = "admin.db.name"
-
-    superUserIDKey = "superuser.id"
+    superuserIDKey = "superuser.id"
 )
 
 var rootCmd = &cobra.Command{
@@ -55,7 +44,6 @@ var rootCmd = &cobra.Command{
             log.SetReportCaller(true)
         }
         checkMandatoryParams()
-        checkDependentParams()
         if err := start(); err != nil {
             log.Fatal(err)
         }
@@ -63,193 +51,91 @@ var rootCmd = &cobra.Command{
 }
 
 func start() error {
-    defer log.WithFields(log.Fields{
-        "status": "STOPPED",
-    }).Info()
-
-    botLogEntry := log.WithField("context", "BOT")
-    notifierLogEntry := log.WithField("context", "NOTIFIER")
-
-    tgEndpoint := viper.GetString("telegram.endpoint")
-    botToken := viper.GetString(botTokenKey)
-
+    logger := log.New()
     mongoOpts := options.Client().SetAppName("bot").SetAuth(options.Credential{
-        Username: viper.GetString(logDBUserKey),
-        Password: viper.GetString(logDBPasswordKey),
+        Username: viper.GetString(dbUserKey),
+        Password: viper.GetString(dbPasswordKey),
     }).SetHosts([]string{
-        viper.GetString(logDBHostKey),
+        viper.GetString(dbHostKey),
     })
 
-    mongoConnectCtx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+    mongoConnectCtx, dropMongoConnect := context.WithTimeout(context.Background(), 10*time.Second)
+    defer dropMongoConnect()
+
     mongoClient, err := mongoDriver.Connect(mongoConnectCtx, mongoOpts)
     if err != nil {
-        log.WithFields(log.Fields{
+        logger.WithFields(log.Fields{
             "context": "MongoDB",
             "action":  "CONNECT",
         }).Error(err)
         return err
     }
-    mongoPingCtx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-    if err := mongoClient.Ping(mongoPingCtx, readpref.Primary()); err != nil {
-        log.WithFields(log.Fields{
-            "context": "MongoDB",
-            "action":  "PING",
-        }).Error(err)
-        return err
-    }
-    log.WithFields(log.Fields{
-        "context": "MongoDB",
-        "status":  "CONNECTED",
-    }).Info()
+
     defer func() {
         if err := mongoClient.Disconnect(context.Background()); err != nil {
-            log.WithFields(log.Fields{
+            logger.WithFields(log.Fields{
                 "context": "MongoDB",
                 "action":  "DISCONNECT",
             }).Error(err)
         }
     }()
-    var updatesLogger tglog.UpdatesLogger
 
-    logDB := mongoClient.Database(viper.GetString(logDBNameKey))
-    usersRepo := mongolog.NewUsersRepo(logDB)
-    chatsRepo := mongolog.NewChatsRepo(logDB)
-    updatesRepo, err := mongolog.NewUpdatesRepo(logDB, &mongolog.UpdatesRepoDependencies{
-        Users: usersRepo,
-        Chats: chatsRepo,
-    })
-    if err != nil {
-        log.WithFields(log.Fields{
-            "context": "UpdatesRepo",
-            "action":  "CREATE",
+    mongoPingCtx, dropMongoPing := context.WithTimeout(context.Background(), 5*time.Second)
+    defer dropMongoPing()
+
+    if err := mongoClient.Ping(mongoPingCtx, readpref.Primary()); err != nil {
+        logger.WithFields(log.Fields{
+            "context": "MongoDB",
+            "action":  "PING",
         }).Error(err)
         return err
     }
-    bufUpdRepo := mongolog.NewBufferedUpdatesRepo(updatesRepo)
-    defer func() {
-        if err := bufUpdRepo.Close(); err != nil {
-            log.WithFields(log.Fields{
-                "context": "MongoDB.BufferedUpdatesRepo",
-                "action":  "Close",
-            }).Error(err)
-        }
-    }()
-    updatesLogger = &dblog.RepoLogger{
-        UpdatesRepo: bufUpdRepo,
-    }
-
-    poller := &tb.LongPoller{
-        Timeout: 60 * time.Second,
-    }
-    logPoller := tb.NewMiddlewarePoller(poller, func(update *tb.Update) bool {
-        go func() {
-            upd := logrepo.FromTelebotUpdate(update)
-            if err := updatesLogger.LogUpdates(upd); err != nil {
-                log.WithFields(log.Fields{
-                    "context": "UpdatesLogger",
-                    "action":  "LOG",
-                }).Error(err)
-            }
-        }()
-        return true
-    })
-    tgBot, err := tb.NewBot(tb.Settings{
-        URL:    tgEndpoint,
-        Token:  botToken,
-        Poller: logPoller,
-        Client: &http.Client{
-            Timeout: 0,
-        },
-        Reporter: func(err error) {
-            botLogEntry.Error(err)
-        },
-    })
-    if err != nil {
-        botLogEntry.WithField("action", "AUTHENTICATE").Error(err)
-        return err
-    }
-    botLogEntry.WithFields(log.Fields{
-        "status":  "AUTHENTICATED",
-        "account": tgBot.Me.Username,
+    logger.WithFields(log.Fields{
+        "context": "MongoDB",
+        "status":  "CONNECTED",
     }).Info()
 
-    adminDB := mongoClient.Database(viper.GetString(adminDBNameKey))
-    rolesRepo := mongoadmin.NewRolesRepo(adminDB)
-    if _, err := rolesRepo.CreateIfNotExists(context.Background(), adminrepo.SuperuserRole); err != nil {
-        return err
+    botMongoDB := mongoClient.Database(viper.GetString(dbNameKey))
+
+    botRoles := mongoadmin.NewRolesRepo(botMongoDB)
+    botAdmins := mongoadmin.NewAdminsRepo(botMongoDB, botRoles)
+
+    botTgUsers := mongotg.NewUsersRepo(botMongoDB)
+    botTgChats := mongotg.NewChatsRepo(botMongoDB)
+    botTgUpdates := mongotg.NewUpdatesRepo(botMongoDB, botTgUsers, botTgChats)
+
+    botStdErrorLogger := stderr.NewErrorLogger(logger)
+    botDBErrorLogger := mongolog.NewErrorLogger(botMongoDB, botStdErrorLogger)
+
+    botPrefs := bot.Settings{
+        Token:        viper.GetString(botTokenKey),
+        LastUpdateID: 0, // TODO: set from env
+        Storage: &bot.Storage{
+            Admins: botAdmins,
+            Roles:  botRoles,
+        },
+        UpdateLogger: repolog.NewUpdatesLogger(botTgUpdates),
+        ErrorLogger: errors.NewCompositeErrorLogger(
+            botStdErrorLogger,
+            botDBErrorLogger,
+        ),
+        SuperuserID: viper.GetInt64(superuserIDKey),
     }
-    adminsRepo, err := mongoadmin.NewAdminsRepo(adminDB, &mongoadmin.AdminsRepoDependencies{
-        Roles: rolesRepo,
-    })
+
+    b, err := bot.New(&botPrefs)
     if err != nil {
-        log.WithFields(log.Fields{
-            "context": "AdminsRepo",
+        logger.WithFields(log.Fields{
+            "context": "BOT",
             "action":  "CREATE",
         }).Error(err)
         return err
     }
-    if _, err := adminsRepo.CreateIfNotExists(context.Background(), &adminrepo.Admin{
-        ID:   viper.GetInt64(superUserIDKey),
-        Role: adminrepo.SuperuserRole,
-    }); err != nil {
-        return err
-    }
-    b, err := bot.NewBot(tgBot, &bot.Params{
-        Storage: &bot.Storage{
-            Admins: adminsRepo,
-            Roles:  rolesRepo,
-        }, // TODO: pass logger
-    })
-    if err != nil {
-        botLogEntry.WithField("action", "CONFIGURE").Error(err)
-        return err
-    }
-    statusNotifier := notifier.NewBaseNotifier()
 
-    notifierToken := viper.GetString(notifierBotTokenKey)
-    if notifierToken != "" {
-        nb, err := tb.NewBot(tb.Settings{
-            URL:   tgEndpoint,
-            Token: notifierToken,
-        })
-        if err != nil {
-            notifierLogEntry.WithField("action", "AUTHENTICATE").Error(err)
-            return err
-        }
-        notifierLogEntry.WithFields(log.Fields{
-            "status":  "AUTHENTICATED",
-            "account": nb.Me.Username,
-        }).Info()
-        statusNotifier.Register(&notifier.Bot{
-            Bot: nb,
-            Chat: &tb.Chat{
-                ID: viper.GetInt64(notifierBotChatIDKey),
-            },
-        })
-    }
-    ctx, cancelFunc := context.WithCancel(context.Background())
-    defer cancelFunc()
+    go b.Start()
+    defer b.Stop()
 
     sigCh := make(chan os.Signal, 1)
     signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-
-    statusNotifier.Start(ctx)
-    defer statusNotifier.Stop()
-
-    go func() {
-        botLogEntry.WithField("status", "STARTED").Info()
-        b.Start()
-    }()
-    defer func() {
-        b.Stop()
-        botLogEntry.WithFields(log.Fields{
-            "status":       "STOPPED",
-            "lastUpdateID": poller.LastUpdateID,
-        }).Info()
-    }()
-
-    statusNotifier.NotifyUp(tgBot.Me.Username)
-    defer statusNotifier.NotifyDown(tgBot.Me.Username)
 
     gotSig := <-sigCh
     log.WithFields(log.Fields{
@@ -282,13 +168,12 @@ func initConfig() {
 func checkMandatoryParams() {
     mandatoryParams := [...]string{
         botTokenKey,
-        logDBHostKey,
-        logDBPortKey,
-        logDBUserKey,
-        logDBPasswordKey,
-        logDBNameKey,
-        adminDBNameKey,
-        superUserIDKey,
+        dbHostKey,
+        dbPortKey,
+        dbUserKey,
+        dbPasswordKey,
+        dbNameKey,
+        superuserIDKey,
     }
     var missing []string
 
@@ -301,39 +186,4 @@ func checkMandatoryParams() {
     if len(missing) > 0 {
         log.Fatalf("missing: %s", strings.Join(missing, ", "))
     }
-}
-
-func checkDependentParams() {
-    if viper.IsSet(notifierBotTokenKey) != viper.IsSet(notifierBotChatIDKey) {
-        log.Fatalf("%s must be provided simultaneously", strings.Join([]string{
-            notifierBotTokenKey,
-            notifierBotChatIDKey,
-        }, ", "))
-    }
-}
-
-func getClickHouseDB(host string, port int, username, password, dbName string) (*sql.DB, error) {
-    connURL := url.URL{
-        Scheme: "tcp",
-        Host:   host,
-        Path:   dbName,
-    }
-    if port != 0 {
-        connURL.Host += ":" + strconv.Itoa(port)
-    }
-    if username != "" {
-        connURL.RawQuery += "&username=" + username
-    }
-    if password != "" {
-        connURL.RawQuery += "&password=" + password
-    }
-
-    db, err := sql.Open("clickhouse", connURL.String())
-    if err != nil {
-        return nil, err
-    }
-    if err := db.Ping(); err != nil {
-        return nil, err
-    }
-    return db, nil
 }

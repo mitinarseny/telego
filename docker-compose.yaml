@@ -17,12 +17,11 @@ services:
         GID: 12345
         UID: 54321
     environment:
-      TELEGO_LOG_DB_HOST: db
-      TELEGO_LOG_DB_PORT: 27017
-      TELEGO_LOG_DB_USER: bot
-      TELEGO_LOG_DB_PASSWORD: Password123!
-      TELEGO_LOG_DB_NAME: log
-      TELEGO_ADMIN_DB_NAME: administration
+      TELEGO_DB_HOST: db
+      TELEGO_DB_PORT: 27017
+      TELEGO_DB_USER: bot
+      TELEGO_DB_PASSWORD: Password123!
+      TELEGO_DB_NAME: bot
     depends_on:
       - db
     networks:

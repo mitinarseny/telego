@@ -12,7 +12,7 @@ type Logger interface {
 func MsgWithLog(l Logger, h MsgHandler) func(*tb.Message) {
     return func(m *tb.Message) {
         if err := h.HandleMsg(m); err != nil {
-            log.Error(err) // log with Logger
+            log.Error(err) // log with ErrorLogger
         }
     }
 }
@@ -20,7 +20,7 @@ func MsgWithLog(l Logger, h MsgHandler) func(*tb.Message) {
 func CallbackWithLog(l Logger, h CallbackHandler) func(*tb.Callback) {
     return func(c *tb.Callback) {
         if err := h.HandleCallback(c); err != nil {
-            log.Error(err) // log with Logger
+            log.Error(err) // log with ErrorLogger
         }
     }
 }

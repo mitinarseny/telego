@@ -3,7 +3,7 @@ package filters
 import (
     "context"
 
-    "github.com/mitinarseny/telego/administration/repo"
+    "github.com/mitinarseny/telego/bot/repo/administration"
     tb "gopkg.in/tucnak/telebot.v2"
 )
 
@@ -11,13 +11,13 @@ type isAdmin struct {
     msgParent      MsgFilter
     callbackParent CallbackFilter
 
-    admins repo.AdminsRepo
+    admins administration.AdminsRepo
 }
 
 func (f *isAdmin) isAdmin(adminID int64) (bool, error) {
     if _, err := f.admins.GetByID(context.Background(), adminID); err != nil {
         switch err.(type) {
-        case repo.AdminNotFound:
+        case administration.AdminNotFound:
             return false, nil
         default:
             return false, err
@@ -50,7 +50,7 @@ func (f *isAdmin) FilterCallback(c *tb.Callback) (bool, error) {
     return f.isAdmin(int64(c.Sender.ID))
 }
 
-func (f *isAdmin) HasScopes(scopes ...repo.Scope) *hasScopes {
+func (f *isAdmin) HasScopes(scopes ...administration.Scope) *hasScopes {
     return &hasScopes{
         msgParent:      f,
         callbackParent: f,
@@ -62,8 +62,8 @@ type hasScopes struct {
     callbackParent CallbackFilter
     msgParent      MsgFilter
 
-    admins repo.AdminsRepo
-    scopes []repo.Scope
+    admins administration.AdminsRepo
+    scopes []administration.Scope
 }
 
 func (f *hasScopes) hasScopes(adminID int64) (bool, error) {
@@ -102,15 +102,15 @@ type isAdminWithScopes struct {
     callbackParent CallbackFilter
     msgParent      MsgFilter
 
-    admins repo.AdminsRepo
-    scopes []repo.Scope
+    admins administration.AdminsRepo
+    scopes []administration.Scope
 }
 
 func (f *isAdminWithScopes) isAdminWithScopes(adminID int64) (bool, error) {
     has, err := f.admins.HasScopesByID(context.Background(), adminID, f.scopes...)
     if err != nil {
         switch err.(type) {
-        case repo.AdminNotFound:
+        case administration.AdminNotFound:
             return false, nil
         default:
             return false, err
