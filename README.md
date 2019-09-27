@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/mitinarseny/telego">
-    <img src="_assets/logo.png" alt="telego logo" width="20%" />
+    <img src=".assets/logo.png" alt="telego logo" width="20%" />
   </a>
   <h1 align="center">telego</h1>
   <p align="center">Docker Go template for creating <a href="https://core.telegram.org/bots">Telegram Bots</a> with clean architecture.</p>
