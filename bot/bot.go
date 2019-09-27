@@ -18,6 +18,10 @@ import (
     tb "gopkg.in/tucnak/telebot.v2"
 )
 
+const (
+    customizeNotificationsEndpoint = "customizeNotifications"
+)
+
 type MsgHandlerFunc func(*tb.Message) error
 
 type MsgFilterFunc func(*tb.Message) (bool, error)
@@ -81,7 +85,7 @@ func New(s *Settings) (*Bot, error) {
         ErrorLogger: s.Logger,
         Admins:      s.Storage.Admins,
         Notifiers: map[admins.NotifierType]notify.Notifier{
-            admins.TelegramNotifier: tgnotify.NewNotifier(b.tg),
+            admins.TelegramNotifier: tgnotify.NewNotifier(b.tg, customizeNotificationsEndpoint),
         },
     }
     if err := b.setupSuperuser(s.SuperuserID); err != nil {
@@ -123,6 +127,14 @@ func (b *Bot) setupHandlers() {
             Roles:  b.s.Roles,
         },
     }, filters.WithSender().IsAdminWithScopes(b.s.Admins, admins.AdminsReadScope))))
+    b.tg.Handle(customizeNotificationsEndpoint, handlers.CallbackWithLog(b.logger,
+        handlers.WithCallbackFilters(&handlers.CustomizeNotifications{
+            UnsafeErrorLogger: b.logger,
+            B:                 b.tg,
+            Storage: &handlers.CustomizeNotificationsStorage{
+                Admins: b.s.Admins,
+            },
+        }, filters.WithSender().IsAdmin(b.s.Admins))))
 }
 
 func (b *Bot) Start() {

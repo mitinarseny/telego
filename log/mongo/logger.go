@@ -23,17 +23,24 @@ func NewErrorLogger(db *mongo.Database) *Logger {
 }
 
 func (l *Logger) Error(args ...interface{}) error {
-    return l.log("error", args...)
+    return l.log(errorLevel, args...)
 }
 
 func (l *Logger) Info(args ...interface{}) error {
-    return l.log("info", args...)
+    return l.log(infoLevel, args...)
 }
 
-func (l *Logger) log(typ string, args ...interface{}) error {
+const (
+    errorLevel level = "error"
+    infoLevel  level = "info"
+)
+
+type level string
+
+func (l *Logger) log(lvl level, args ...interface{}) error {
     _, err := l.this.InsertOne(context.Background(), bson.D{
         {"created_at", time.Now()},
-        {"type", typ},
+        {"level", lvl},
         {"data", args},
     })
     return err

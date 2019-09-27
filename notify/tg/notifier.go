@@ -9,25 +9,36 @@ import (
     tb "gopkg.in/tucnak/telebot.v2"
 )
 
+const (
+    notificationFormat = "ℹ️ *%s*"
+)
+
 type Notifier struct {
-    tg *tb.Bot
+    tg                *tb.Bot
+    customizeEndpoint string
 }
 
-func NewNotifier(tg *tb.Bot) *Notifier {
+func NewNotifier(tg *tb.Bot, customizeEndpoint string) *Notifier {
     return &Notifier{
-        tg: tg,
+        tg:                tg,
+        customizeEndpoint: customizeEndpoint,
     }
 }
 
 func (n *Notifier) Notify(dest string, nt notify.Notification) error {
-    text := fmt.Sprintf("*%s*", nt.Msg()) // TODO: nicer message style
+    text := fmt.Sprintf(notificationFormat, nt.Msg()) // TODO: nicer message style
     userID, err := strconv.Atoi(dest)
     if err != nil {
         return errors.Wrapf(err, "can not parse userID from %q", dest)
     }
     _, err = n.tg.Send(&tb.User{ID: userID}, text, &tb.SendOptions{
         ParseMode: tb.ModeMarkdown,
-        // TODO: add buttons to customise notifications settings for current user
+    }, &tb.ReplyMarkup{
+        InlineKeyboard: [][]tb.InlineButton{{{
+            Unique: n.customizeEndpoint,
+            Text:   "Customize Notifications",
+            Data:   "", // TODO: add data to identify or with sessions ???
+        }}},
     })
     return err
 }
