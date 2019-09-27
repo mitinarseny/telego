@@ -2,18 +2,18 @@ package bot
 
 import (
     "context"
+    "fmt"
     "net/http"
     "strconv"
     "time"
 
+    "github.com/mitinarseny/telego/admins"
     "github.com/mitinarseny/telego/bot/filters"
     "github.com/mitinarseny/telego/bot/handlers"
-    errlog "github.com/mitinarseny/telego/bot/logging/errors"
-    "github.com/mitinarseny/telego/bot/logging/updates"
-    "github.com/mitinarseny/telego/bot/notifier"
-    "github.com/mitinarseny/telego/bot/notifier/admins"
-    "github.com/mitinarseny/telego/bot/notifier/tg"
-    "github.com/mitinarseny/telego/bot/repo/administration"
+    "github.com/mitinarseny/telego/bot/tglog"
+    "github.com/mitinarseny/telego/log"
+    "github.com/mitinarseny/telego/notify"
+    tgnotify "github.com/mitinarseny/telego/notify/tg"
     "github.com/pkg/errors"
     tb "gopkg.in/tucnak/telebot.v2"
 )
@@ -23,38 +23,32 @@ type MsgHandlerFunc func(*tb.Message) error
 type MsgFilterFunc func(*tb.Message) (bool, error)
 
 type Storage struct {
-    Admins administration.AdminsRepo
-    Roles  administration.RolesRepo
-}
-
-type Logger interface {
-    Log(error)
+    Admins admins.AdminsRepo
+    Roles  admins.RolesRepo
 }
 
 type Bot struct {
-    tg *tb.Bot
-
-    s *Storage
-
-    errLogger    errlog.Logger
-    updateLogger updates.Logger
-    Notifier     *admins.Notifier
-    superuserID  int64
+    tg             *tb.Bot
+    s              *Storage
+    updateLogger   *tglog.Logger
+    logger         log.UnsafeInfoErrorLogger
+    adminsNotifier notify.AutoNotifier
+    superuserID    int64
 }
 
 type Settings struct {
     Token        string
     LastUpdateID int
     Storage      *Storage
-    UpdateLogger updates.Logger
-    ErrorLogger  errlog.Logger
+    UpdateLogger *tglog.Logger
+    Logger       log.UnsafeInfoErrorLogger
     SuperuserID  int64
 }
 
 func New(s *Settings) (*Bot, error) {
     b := Bot{
         s:            s.Storage,
-        errLogger:    s.ErrorLogger,
+        logger:       s.Logger,
         updateLogger: s.UpdateLogger,
         superuserID:  s.SuperuserID,
     }
@@ -66,7 +60,7 @@ func New(s *Settings) (*Bot, error) {
         }, func(u *tb.Update) bool {
             go func() {
                 if err := b.updateLogger.LogUpdates(u); err != nil {
-                    b.errLogger.Log(err)
+                    b.logger.Error(err)
                 }
             }()
             return true
@@ -75,40 +69,42 @@ func New(s *Settings) (*Bot, error) {
             Timeout: 0,
         },
         Reporter: func(err error) {
-            b.errLogger.Log(err)
+            b.logger.Error(err)
         },
     })
     if err != nil {
         return nil, err
     }
     b.tg = bot
-    b.Notifier = &admins.Notifier{
-        ErrorLogger: s.ErrorLogger,
+    b.logger.Info(fmt.Sprintf("Authorized as @%s", b.tg.Me.Username))
+    b.adminsNotifier = &notify.AdminsNotifier{
+        ErrorLogger: s.Logger,
         Admins:      s.Storage.Admins,
-        Notifiers: map[administration.NotifierType]notifier.Notifier{
-            administration.TelegramNotificationDest: tg.NewNotifier(b.tg),
+        Notifiers: map[admins.NotifierType]notify.Notifier{
+            admins.TelegramNotifier: tgnotify.NewNotifier(b.tg),
         },
     }
-    if err := b.setSuperuser(s.SuperuserID); err != nil {
+    if err := b.setupSuperuser(s.SuperuserID); err != nil {
         return nil, err
     }
     b.setupHandlers()
     return &b, nil
 }
 
-func (b *Bot) setSuperuser(userID int64) error {
+func (b *Bot) setupSuperuser(userID int64) error {
     userIDStr := strconv.FormatInt(userID, 10)
     if _, err := b.tg.ChatByID(userIDStr); err != nil {
         return errors.Wrapf(err,
-            "can't get chat with superuser %q, check that superuser has a conversation with bot",
-            userIDStr)
+            "can't get chat with superuser %q, check that superuser has a conversation with bot %q",
+            userIDStr,
+            b.tg.Me.Username)
     }
-    _, err := b.s.Admins.CreateIfNotExists(context.Background(), &administration.Admin{
+    _, err := b.s.Admins.CreateIfNotExists(context.Background(), &admins.Admin{
         ID:   userID,
-        Role: administration.SuperuserRole,
-        Notifications: administration.NotificationsPreferences{
-            Status: []administration.NotifierType{
-                administration.TelegramNotificationDest,
+        Role: admins.SuperuserRole,
+        Notifications: &admins.Notifications{
+            Status: []admins.NotifierType{
+                admins.TelegramNotifier,
             },
         },
     })
@@ -116,30 +112,32 @@ func (b *Bot) setSuperuser(userID int64) error {
 }
 
 func (b *Bot) setupHandlers() {
-    b.tg.Handle("/start", handlers.MsgWithLog(b.errLogger, &handlers.Start{
+    b.tg.Handle("/start", handlers.MsgWithLog(b.logger, &handlers.Start{
         B: b.tg,
     }))
-    b.tg.Handle("/admins", handlers.MsgWithLog(b.errLogger, handlers.WithMsgFilters(&handlers.Admins{
-        Logger: b.errLogger,
-        B:      b.tg,
+    b.tg.Handle("/admins", handlers.MsgWithLog(b.logger, handlers.WithMsgFilters(&handlers.Admins{
+        UnsafeInfoErrorLogger: b.logger,
+        B:                     b.tg,
         Storage: &handlers.AdminsStorage{
             Admins: b.s.Admins,
             Roles:  b.s.Roles,
         },
-    }, filters.WithSender().IsAdminWithScopes(b.s.Admins, administration.AdminsReadScope))))
+    }, filters.WithSender().IsAdminWithScopes(b.s.Admins, admins.AdminsReadScope))))
 }
 
 func (b *Bot) Start() {
-    if err := b.Notifier.NotifyStatus(admins.StatusUp); err != nil {
-        b.errLogger.Log(err)
+    b.logger.Info("STARTED")
+    if err := b.adminsNotifier.Notify(notify.StatusNotification(notify.StatusUp)); err != nil {
+        b.logger.Error(err)
     }
     b.tg.Start()
 }
 
 func (b *Bot) Stop() {
+    defer b.logger.Info("STOPPED")
     defer func() {
-        if err := b.Notifier.NotifyStatus(admins.StatusDown); err != nil {
-            b.errLogger.Log(err)
+        if err := b.adminsNotifier.Notify(notify.StatusNotification(notify.StatusDown)); err != nil {
+            b.logger.Error(err)
         }
     }()
     b.tg.Stop()

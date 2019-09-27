@@ -6,9 +6,10 @@ import (
     "regexp"
     "strconv"
 
+    "github.com/mitinarseny/telego/admins"
     "github.com/mitinarseny/telego/bot/chattools"
     "github.com/mitinarseny/telego/bot/filters"
-    "github.com/mitinarseny/telego/bot/repo/administration"
+    "github.com/mitinarseny/telego/log"
     "github.com/pkg/errors"
     tb "gopkg.in/tucnak/telebot.v2"
 )
@@ -19,12 +20,12 @@ const (
 )
 
 type AdminsStorage struct {
-    Admins administration.AdminsRepo
-    Roles  administration.RolesRepo
+    Admins admins.AdminsRepo
+    Roles  admins.RolesRepo
 }
 
 type Admins struct {
-    Logger
+    log.UnsafeInfoErrorLogger
     B       *tb.Bot
     Storage *AdminsStorage
 }
@@ -44,9 +45,9 @@ func (h *Admins) HandleMsg(m *tb.Message) error {
     return err
 }
 
-func (h *Admins) makeAdminsBtns(admins []*administration.Admin) ([][]tb.InlineButton, error) {
-    keyboard := make([][]tb.InlineButton, 0, len(admins)/2+len(admins)%2)
-    for i, admin := range admins {
+func (h *Admins) makeAdminsBtns(adms []*admins.Admin) ([][]tb.InlineButton, error) {
+    keyboard := make([][]tb.InlineButton, 0, len(adms)/2+len(adms)%2)
+    for i, admin := range adms {
         if admin.Role == nil {
             return nil, errors.Errorf("admin %d has no role", admin.ID)
         }
@@ -69,25 +70,25 @@ func (h *Admins) makeAdminsBtns(admins []*administration.Admin) ([][]tb.InlineBu
             Data:   strAdminID,
         }
         h.B.Handle(&btn, CallbackWithLog(h, WithCallbackFilters(&adminChosen{
-            Logger: h,
-            b:      h.B,
+            UnsafeInfoErrorLogger: h,
+            b:                     h.B,
             storage: &chosenAdminStorage{
                 Admins: h.Storage.Admins,
                 Roles:  h.Storage.Roles,
             },
-        }, filters.WithSender().IsAdminWithScopes(h.Storage.Admins, administration.AdminsReadScope))))
+        }, filters.WithSender().IsAdminWithScopes(h.Storage.Admins, admins.AdminsReadScope))))
         keyboard[i/2] = append(keyboard[i/2], btn)
     }
     return keyboard, nil
 }
 
 type chosenAdminStorage struct {
-    Admins administration.AdminsRepo
-    Roles  administration.RolesRepo
+    Admins admins.AdminsRepo
+    Roles  admins.RolesRepo
 }
 
 type adminChosen struct {
-    Logger
+    log.UnsafeInfoErrorLogger
     b       *tb.Bot
     storage *chosenAdminStorage
 }
@@ -108,14 +109,14 @@ func (h *adminChosen) HandleCallback(c *tb.Callback) error {
     return h.handle(c.Message, sender, admin)
 }
 
-func (h *adminChosen) handle(m *tb.Message, sender, admin *administration.Admin) error {
+func (h *adminChosen) handle(m *tb.Message, sender, admin *admins.Admin) error {
     var (
         text string
         opts = []interface{}{
             tb.ModeMarkdown,
         }
     )
-    if sender.HadScopes(administration.AdminsScope) {
+    if sender.HadScopes(admins.AdminsScope) {
         txt, err := h.adminDescription(admin)
         if err != nil {
             return err
@@ -139,7 +140,7 @@ func (h *adminChosen) handle(m *tb.Message, sender, admin *administration.Admin)
     return err
 }
 
-func (h *adminChosen) makeAdminBtns(admin *administration.Admin) ([][]tb.InlineButton, error) {
+func (h *adminChosen) makeAdminBtns(admin *admins.Admin) ([][]tb.InlineButton, error) {
     roles, err := h.storage.Roles.GetAll(context.Background())
     if err != nil {
         return nil, err
@@ -165,7 +166,7 @@ func (h *adminChosen) makeAdminBtns(admin *administration.Admin) ([][]tb.InlineB
             },
             parent: h,
         },
-            filters.WithSender().IsAdminWithScopes(h.storage.Admins, administration.AdminsScope),
+            filters.WithSender().IsAdminWithScopes(h.storage.Admins, admins.AdminsScope),
             filters.DataShouldMatch(adminRoleRegex),
         )))
         keyboard[i/2] = append(keyboard[i/2], btn)
@@ -181,7 +182,7 @@ const (
 *Role:* %s`
 )
 
-func (h *adminChosen) adminDescription(admin *administration.Admin) (string, error) {
+func (h *adminChosen) adminDescription(admin *admins.Admin) (string, error) {
     strAdminID := strconv.FormatInt(admin.ID, 10)
     userLink, err := chattools.WithBot(h.b).UserLink(strAdminID)
     if err != nil {
@@ -190,7 +191,7 @@ func (h *adminChosen) adminDescription(admin *administration.Admin) (string, err
     return fmt.Sprintf(adminTemplate, strAdminID, userLink), nil
 }
 
-func (h *adminChosen) adminDescriptionWithRole(admin *administration.Admin) (string, error) {
+func (h *adminChosen) adminDescriptionWithRole(admin *admins.Admin) (string, error) {
     strAdminID := strconv.FormatInt(admin.ID, 10)
     userLink, err := chattools.WithBot(h.b).UserLink(strAdminID)
     if err != nil {
@@ -204,8 +205,8 @@ func (h *adminChosen) adminDescriptionWithRole(admin *administration.Admin) (str
 }
 
 type roleChosenStorage struct {
-    Admins administration.AdminsRepo
-    Roles  administration.RolesRepo
+    Admins admins.AdminsRepo
+    Roles  admins.RolesRepo
 }
 
 type roleChosen struct {

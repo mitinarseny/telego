@@ -8,14 +8,16 @@ import (
     "syscall"
     "time"
 
+    "github.com/mitinarseny/telego/admins"
+    mongoadmin "github.com/mitinarseny/telego/admins/mongo"
     "github.com/mitinarseny/telego/bot"
-    "github.com/mitinarseny/telego/bot/logging/errors"
-    mongolog "github.com/mitinarseny/telego/bot/logging/errors/mongo"
-    "github.com/mitinarseny/telego/bot/logging/errors/stderr"
-    repolog "github.com/mitinarseny/telego/bot/logging/updates/repo"
-    mongoadmin "github.com/mitinarseny/telego/bot/repo/administration/mongo"
-    mongotg "github.com/mitinarseny/telego/bot/repo/tg/mongo"
-    log "github.com/sirupsen/logrus"
+    "github.com/mitinarseny/telego/bot/tglog"
+    mongotglog "github.com/mitinarseny/telego/bot/tglog/mongo"
+    "github.com/mitinarseny/telego/log"
+    mongolog "github.com/mitinarseny/telego/log/mongo"
+    "github.com/mitinarseny/telego/log/stderr"
+    "github.com/pkg/errors"
+    "github.com/sirupsen/logrus"
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
     mongoDriver "go.mongodb.org/mongo-driver/mongo"
@@ -37,21 +39,25 @@ const (
     superuserIDKey = "superuser.id"
 )
 
+var logger = logrus.New()
+
 var rootCmd = &cobra.Command{
     Run: func(cmd *cobra.Command, args []string) {
         if viper.GetBool(debugKey) {
-            log.SetLevel(log.DebugLevel)
-            log.SetReportCaller(true)
+            logger.SetLevel(logrus.DebugLevel)
+            logger.SetReportCaller(true)
         }
-        checkMandatoryParams()
+        if err := checkMandatoryParams(); err != nil {
+            logger.Fatal(err)
+        }
         if err := start(); err != nil {
-            log.Fatal(err)
+            logger.Fatal(err)
         }
     },
 }
 
 func start() error {
-    logger := log.New()
+    logger := logrus.New()
     mongoOpts := options.Client().SetAppName("bot").SetAuth(options.Credential{
         Username: viper.GetString(dbUserKey),
         Password: viper.GetString(dbPasswordKey),
@@ -64,7 +70,7 @@ func start() error {
 
     mongoClient, err := mongoDriver.Connect(mongoConnectCtx, mongoOpts)
     if err != nil {
-        logger.WithFields(log.Fields{
+        logger.WithFields(logrus.Fields{
             "context": "MongoDB",
             "action":  "CONNECT",
         }).Error(err)
@@ -73,7 +79,7 @@ func start() error {
 
     defer func() {
         if err := mongoClient.Disconnect(context.Background()); err != nil {
-            logger.WithFields(log.Fields{
+            logger.WithFields(logrus.Fields{
                 "context": "MongoDB",
                 "action":  "DISCONNECT",
             }).Error(err)
@@ -84,47 +90,41 @@ func start() error {
     defer dropMongoPing()
 
     if err := mongoClient.Ping(mongoPingCtx, readpref.Primary()); err != nil {
-        logger.WithFields(log.Fields{
+        logger.WithFields(logrus.Fields{
             "context": "MongoDB",
             "action":  "PING",
         }).Error(err)
         return err
     }
-    logger.WithFields(log.Fields{
+    logger.WithFields(logrus.Fields{
         "context": "MongoDB",
         "status":  "CONNECTED",
     }).Info()
 
     botMongoDB := mongoClient.Database(viper.GetString(dbNameKey))
-
-    botRoles := mongoadmin.NewRolesRepo(botMongoDB)
-    botAdmins := mongoadmin.NewAdminsRepo(botMongoDB, botRoles)
-
-    botTgUsers := mongotg.NewUsersRepo(botMongoDB)
-    botTgChats := mongotg.NewChatsRepo(botMongoDB)
-    botTgUpdates := mongotg.NewUpdatesRepo(botMongoDB, botTgUsers, botTgChats)
-
-    botStdErrorLogger := stderr.NewErrorLogger(logger)
-    botDBErrorLogger := mongolog.NewErrorLogger(botMongoDB, botStdErrorLogger)
-
+    mongos := getFromMongoDB(botMongoDB)
+    botStdInfoErrorLogger := stderr.NewErrorLogger(logger)
     botPrefs := bot.Settings{
         Token:        viper.GetString(botTokenKey),
         LastUpdateID: 0, // TODO: set from env
         Storage: &bot.Storage{
-            Admins: botAdmins,
-            Roles:  botRoles,
+            Admins: mongos.Admins,
+            Roles:  mongos.Roles,
         },
-        UpdateLogger: repolog.NewUpdatesLogger(botTgUpdates),
-        ErrorLogger: errors.NewCompositeErrorLogger(
-            botStdErrorLogger,
-            botDBErrorLogger,
-        ),
+        UpdateLogger: tglog.NewUpdatesLogger(mongos.TgUpdates),
+        Logger: log.Unsafe(log.Multi(
+            botStdInfoErrorLogger,
+            log.NewPropagateInfoError(
+                mongos.InfoErrorLogs,
+                botStdInfoErrorLogger,
+            ),
+        )),
         SuperuserID: viper.GetInt64(superuserIDKey),
     }
 
     b, err := bot.New(&botPrefs)
     if err != nil {
-        logger.WithFields(log.Fields{
+        logger.WithFields(logrus.Fields{
             "context": "BOT",
             "action":  "CREATE",
         }).Error(err)
@@ -138,7 +138,7 @@ func start() error {
     signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 
     gotSig := <-sigCh
-    log.WithFields(log.Fields{
+    logger.WithFields(logrus.Fields{
         "signal": gotSig.String(),
         "status": "STOPPING",
     }).Info()
@@ -146,26 +146,35 @@ func start() error {
     return nil
 }
 
-func Execute() {
-    if err := rootCmd.Execute(); err != nil {
-        log.Fatal(err)
+type Repositories struct {
+    Admins        admins.AdminsRepo
+    Roles         admins.RolesRepo
+    TgUsers       tglog.UsersRepo
+    TgChats       tglog.ChatsRepo
+    TgUpdates     tglog.UpdatesRepo
+    InfoErrorLogs log.InfoErrorLogger
+}
+
+func getFromMongoDB(db *mongoDriver.Database) *Repositories {
+    botRoles := mongoadmin.NewRolesRepo(db)
+    botAdmins := mongoadmin.NewAdminsRepo(db, botRoles)
+
+    botTgUsers := mongotglog.NewUsersRepo(db)
+    botTgChats := mongotglog.NewChatsRepo(db)
+    botTgUpdates := mongotglog.NewUpdatesRepo(db, botTgUsers, botTgChats)
+
+    botDBInfoErrorLogger := mongolog.NewErrorLogger(db)
+    return &Repositories{
+        Admins:        botAdmins,
+        Roles:         botRoles,
+        TgUsers:       botTgUsers,
+        TgChats:       botTgChats,
+        TgUpdates:     botTgUpdates,
+        InfoErrorLogs: botDBInfoErrorLogger,
     }
 }
 
-func init() {
-    cobra.OnInitialize(initConfig)
-
-    rootCmd.PersistentFlags().Bool(debugKey, false, "Debug mode")
-    _ = viper.BindPFlag(debugKey, rootCmd.PersistentFlags().Lookup(debugKey))
-}
-
-func initConfig() {
-    viper.SetEnvPrefix("TELEGO")
-    viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-    viper.AutomaticEnv()
-}
-
-func checkMandatoryParams() {
+func checkMandatoryParams() error {
     mandatoryParams := [...]string{
         botTokenKey,
         dbHostKey,
@@ -184,6 +193,26 @@ func checkMandatoryParams() {
     }
 
     if len(missing) > 0 {
-        log.Fatalf("missing: %s", strings.Join(missing, ", "))
+        return errors.Errorf("missing: %s", strings.Join(missing, ", "))
     }
+    return nil
+}
+
+func Execute() {
+    if err := rootCmd.Execute(); err != nil {
+        logger.Fatal(err)
+    }
+}
+
+func initConfig() {
+    viper.SetEnvPrefix("TELEGO")
+    viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+    viper.AutomaticEnv()
+}
+
+func init() {
+    cobra.OnInitialize(initConfig)
+
+    rootCmd.PersistentFlags().Bool(debugKey, false, "Debug mode")
+    _ = viper.BindPFlag(debugKey, rootCmd.PersistentFlags().Lookup(debugKey))
 }
