@@ -2,9 +2,10 @@ package mongo
 
 import (
     "context"
-    "errors"
     "fmt"
     "strconv"
+
+    "github.com/pkg/errors"
 
     "github.com/mitinarseny/telego/admins"
     "go.mongodb.org/mongo-driver/bson"
@@ -21,11 +22,18 @@ type AdminsRepo struct {
     roles admins.RolesRepo
 }
 
-func NewAdminsRepo(db *mongo.Database, roles admins.RolesRepo) *AdminsRepo {
-    return &AdminsRepo{
+func NewAdminsRepo(db *mongo.Database, roles admins.RolesRepo) (*AdminsRepo, error) {
+    r := &AdminsRepo{
         this:  db.Collection(adminsCollectionName),
         roles: roles,
     }
+    if _, err := r.this.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+        Keys:    bson.D{{"id", 1}},
+        Options: options.Index().SetUnique(true),
+    }); err != nil {
+        return nil, errors.Wrapf(err, "unable to create index on %s", adminsCollectionName)
+    }
+    return r, nil
 }
 
 func (r *AdminsRepo) Create(ctx context.Context, adms ...*admins.Admin) ([]*admins.Admin, error) {
@@ -46,7 +54,7 @@ func (r *AdminsRepo) Create(ctx context.Context, adms ...*admins.Admin) ([]*admi
 }
 
 type adminModel struct {
-    ID            int64                 `bson:"_id, omitempty"`
+    ID            int64                 `bson:"id,omitempty"`
     RoleName      string                `bson:"roleName,omitempty"`
     Notifications *admins.Notifications `bson:"notifications,omitempty"`
 }
@@ -66,7 +74,7 @@ func (r *AdminsRepo) CreateIfNotExists(ctx context.Context, adms ...*admins.Admi
         roles = append(roles, admin.Role)
         models = append(models,
             mongo.NewUpdateOneModel().SetFilter(bson.D{
-                {"_id", admin.ID},
+                {"id", admin.ID},
             }).SetUpdate(adminModelFromRepo(admin)).SetUpsert(true))
     }
     if _, err := r.roles.CreateIfNotExists(ctx, roles...); err != nil {
@@ -99,7 +107,7 @@ func (r *AdminsRepo) AssignRoleByIDs(ctx context.Context, roleName string, admin
         return nil, err
     }
     _, err = r.this.UpdateMany(ctx, bson.D{
-        {"_id", bson.D{
+        {"id", bson.D{
             {"$in", adminIDs},
         }},
     }, bson.D{
@@ -119,7 +127,7 @@ func (r *AdminsRepo) GetAll(ctx context.Context) ([]*admins.Admin, error) {
             {"$lookup", bson.D{
                 {"from", rolesCollectionName},
                 {"localField", "roleName"},
-                {"foreignField", "_id"},
+                {"foreignField", "name"},
                 {"as", "role"},
             }},
         }, bson.D{
@@ -127,6 +135,8 @@ func (r *AdminsRepo) GetAll(ctx context.Context) ([]*admins.Admin, error) {
                 {"role", bson.D{
                     {"$arrayElemAt", bson.A{"$role", 0}},
                 }},
+                {"notifications", 1},
+                {"id", 1},
             }},
         },
     })
@@ -157,7 +167,7 @@ func (r *AdminsRepo) GetAllShouldBeNotifiedAbout(ctx context.Context,
             {"$lookup", bson.D{
                 {"from", rolesCollectionName},
                 {"localField", "roleName"},
-                {"foreignField", "_id"},
+                {"foreignField", "name"},
                 {"as", "role"},
             }},
         }, bson.D{
@@ -166,6 +176,7 @@ func (r *AdminsRepo) GetAllShouldBeNotifiedAbout(ctx context.Context,
                     {"$arrayElemAt", bson.A{"$role", 0}},
                 }},
                 {"notifications", 1},
+                {"id", 1},
             }},
         },
     })
@@ -182,14 +193,14 @@ func (r *AdminsRepo) GetAllShouldBeNotifiedAbout(ctx context.Context,
 func (r *AdminsRepo) GetByIDs(ctx context.Context, adminIDs ...int64) ([]*admins.Admin, error) {
     cursor, err := r.this.Aggregate(ctx, bson.A{
         bson.D{{"$match", bson.D{
-            {"_id", bson.D{
+            {"id", bson.D{
                 {"$in", adminIDs},
             }},
         }}}, bson.D{
             {"$lookup", bson.D{
                 {"from", rolesCollectionName},
                 {"localField", "roleName"},
-                {"foreignField", "_id"},
+                {"foreignField", "name"},
                 {"as", "role"},
             }},
         }, bson.D{
@@ -197,6 +208,8 @@ func (r *AdminsRepo) GetByIDs(ctx context.Context, adminIDs ...int64) ([]*admins
                 {"role", bson.D{
                     {"$arrayElemAt", bson.A{"$role", 0}},
                 }},
+                {"notifications", 1},
+                {"id", 1},
             }},
         },
     })
@@ -242,7 +255,7 @@ func (r *AdminsRepo) HasScopesByID(ctx context.Context, adminID int64, scopes ..
 
 func (r *AdminsRepo) DeleteByIDs(ctx context.Context, adminIDs ...int64) error {
     _, err := r.this.DeleteMany(ctx, bson.D{
-        {"_id", bson.D{
+        {"id", bson.D{
             {"$in", adminIDs},
         }},
     })

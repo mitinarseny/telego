@@ -10,35 +10,31 @@ import (
 )
 
 const (
-    notificationFormat = "ℹ️ *%s*"
+    notificationFormat = `ℹ️ *%s*
+
+_To change notification settings send_ %s`
 )
 
 type Notifier struct {
-    tg                *tb.Bot
-    customizeEndpoint string
+    tg                          *tb.Bot
+    notificationSettingsCommand string
 }
 
-func NewNotifier(tg *tb.Bot, customizeEndpoint string) *Notifier {
+func NewNotifier(tg *tb.Bot, notificationSettingsCommand string) *Notifier {
     return &Notifier{
-        tg:                tg,
-        customizeEndpoint: customizeEndpoint,
+        tg:                          tg,
+        notificationSettingsCommand: notificationSettingsCommand,
     }
 }
 
 func (n *Notifier) Notify(dest string, nt notify.Notification) error {
-    text := fmt.Sprintf(notificationFormat, nt.Msg()) // TODO: nicer message style
+    text := fmt.Sprintf(notificationFormat, nt.Msg(), n.notificationSettingsCommand) // TODO: nicer message style
     userID, err := strconv.Atoi(dest)
     if err != nil {
         return errors.Wrapf(err, "can not parse userID from %q", dest)
     }
     _, err = n.tg.Send(&tb.User{ID: userID}, text, &tb.SendOptions{
         ParseMode: tb.ModeMarkdown,
-    }, &tb.ReplyMarkup{
-        InlineKeyboard: [][]tb.InlineButton{{{
-            Unique: n.customizeEndpoint,
-            Text:   "Customize Notifications",
-            Data:   "", // TODO: add data to identify or with sessions ???
-        }}},
     })
     return err
 }

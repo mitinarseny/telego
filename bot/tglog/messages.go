@@ -7,7 +7,7 @@ import (
 )
 
 type Message struct {
-    MessageID             int64                 `bson:"_id,omitempty"`
+    MessageID             int64                 `bson:"message_id,omitempty"`
     From                  *User                 `bson:"from,omitempty"`
     Date                  time.Time             `bson:"date,omitempty"`
     Chat                  *Chat                 `bson:"chat,omitempty"`
@@ -58,9 +58,6 @@ type Message struct {
 
 func fromTelebotMessage(m *tb.Message) *Message {
     msg := new(Message)
-    if m == nil {
-        return msg
-    }
     msg.MessageID = int64(m.ID)
     if m.Sender != nil {
         msg.From = fromTelebotUser(m.Sender)

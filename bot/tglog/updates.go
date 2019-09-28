@@ -7,9 +7,7 @@ import (
 )
 
 type Update struct {
-    BaseModel `bson:",inline"`
-
-    UpdateID           int64               `bson:"_id,omitempty"`
+    UpdateID           int64               `bson:"update_id,omitempty"`
     Message            *Message            `bson:"message,omitempty"`
     EditedMessage      *Message            `bson:"edited_message,omitempty"`
     ChannelPost        *Message            `bson:"channel_post,omitempty"`
@@ -80,6 +78,9 @@ func fromTelebotUpdate(u *tb.Update) *Update {
     }
     if u.ChosenInlineResult != nil {
         upd.ChosenInlineResult = fromTelebotChosenInlineResult(u.ChosenInlineResult)
+    }
+    if u.Callback != nil {
+        upd.CallbackQuery = fromTelebotCallback(u.Callback)
     }
     if u.PreCheckoutQuery != nil {
         upd.PreCheckoutQuery = fromPreCheckoutQuery(u.PreCheckoutQuery)

@@ -14,9 +14,11 @@ import (
     tb "gopkg.in/tucnak/telebot.v2"
 )
 
+// Endpoints
 const (
-    adminChosenEvent     = "adminChosen"
-    adminRoleChosenEvent = "adminRoleChosen"
+    // Callbacks
+    adminChosenCallbackUnique     = "adminChosen"
+    adminRoleChosenCallbackUnique = "adminRoleChosen"
 )
 
 type AdminsStorage struct {
@@ -26,12 +28,41 @@ type AdminsStorage struct {
 
 type Admins struct {
     log.UnsafeInfoErrorLogger
-    B       *tb.Bot
+    tg      *tb.Bot
+    storage *AdminsStorage
+}
+
+type AdminsSettings struct {
+    Logger  log.UnsafeInfoErrorLogger
+    Tg      *tb.Bot
     Storage *AdminsStorage
 }
 
+func NewAdmins(pref *AdminsSettings) *Admins {
+    h := &Admins{
+        UnsafeInfoErrorLogger: pref.Logger,
+        tg:                    pref.Tg,
+        storage:               pref.Storage,
+    }
+    h.tg.Handle(&tb.InlineButton{
+        Unique: adminChosenCallbackUnique,
+    }, CallbackWithLog(h, WithCallbackFilters(newAdminChosen(&adminChosenSettings{
+        Logger: h,
+        Tg:     h.tg,
+        Storage: &chosenAdminStorage{
+            Admins: h.storage.Admins,
+            Roles:  h.storage.Roles,
+        },
+    }),
+        filters.WithSender().IsAdminWithScopes(h.storage.Admins,
+            admins.AdminsReadScope,
+        ),
+    )))
+    return h
+}
+
 func (h *Admins) HandleMsg(m *tb.Message) error {
-    adms, err := h.Storage.Admins.GetAll(context.Background())
+    adms, err := h.storage.Admins.GetAll(context.Background())
     if err != nil {
         return err
     }
@@ -39,7 +70,7 @@ func (h *Admins) HandleMsg(m *tb.Message) error {
     if err != nil {
         return err
     }
-    _, err = h.B.Send(m.Sender, "Here is the list of admins:", &tb.ReplyMarkup{
+    _, err = h.tg.Send(m.Sender, "Here is the list of admins:", &tb.ReplyMarkup{
         InlineKeyboard: inlineKeys,
     })
     return err
@@ -55,7 +86,7 @@ func (h *Admins) makeAdminsBtns(adms []*admins.Admin) ([][]tb.InlineButton, erro
             keyboard = append(keyboard, make([]tb.InlineButton, 0, 2))
         }
         strAdminID := strconv.FormatInt(admin.ID, 10)
-        chat, err := h.B.ChatByID(strAdminID)
+        chat, err := h.tg.ChatByID(strAdminID)
         if err != nil {
             return nil, errors.Wrapf(err, "can not get chat with %q", strAdminID)
         }
@@ -64,20 +95,11 @@ func (h *Admins) makeAdminsBtns(adms []*admins.Admin) ([][]tb.InlineButton, erro
             adminName += " " + chat.LastName
         }
         adminName += " (" + admin.Role.Name + ")"
-        btn := tb.InlineButton{
-            Unique: adminChosenEvent,
+        keyboard[i/2] = append(keyboard[i/2], tb.InlineButton{
+            Unique: adminChosenCallbackUnique,
             Text:   adminName,
             Data:   strAdminID,
-        }
-        h.B.Handle(&btn, CallbackWithLog(h, WithCallbackFilters(&adminChosen{
-            UnsafeInfoErrorLogger: h,
-            b:                     h.B,
-            storage: &chosenAdminStorage{
-                Admins: h.Storage.Admins,
-                Roles:  h.Storage.Roles,
-            },
-        }, filters.WithSender().IsAdminWithScopes(h.Storage.Admins, admins.AdminsReadScope))))
-        keyboard[i/2] = append(keyboard[i/2], btn)
+        })
     }
     return keyboard, nil
 }
@@ -89,8 +111,41 @@ type chosenAdminStorage struct {
 
 type adminChosen struct {
     log.UnsafeInfoErrorLogger
-    b       *tb.Bot
+    tg      *tb.Bot
     storage *chosenAdminStorage
+}
+
+type adminChosenSettings struct {
+    Logger  log.UnsafeInfoErrorLogger
+    Tg      *tb.Bot
+    Storage *chosenAdminStorage
+}
+
+func newAdminChosen(pref *adminChosenSettings) *adminChosen {
+    h := &adminChosen{
+        UnsafeInfoErrorLogger: pref.Logger,
+        tg:                    pref.Tg,
+        storage: &chosenAdminStorage{
+            Admins: pref.Storage.Admins,
+            Roles:  pref.Storage.Roles,
+        },
+    }
+    h.tg.Handle(&tb.InlineButton{
+        Unique: adminRoleChosenCallbackUnique,
+    }, CallbackWithLog(h, WithCallbackFilters(newAdminRoleChosen(&adminRoleChosenSettings{
+        Tg: h.tg,
+        Storage: &RoleChosenStorage{
+            Admins: h.storage.Admins,
+            Roles:  h.storage.Roles,
+        },
+        Parent: h,
+    }),
+        filters.WithSender().IsAdminWithScopes(h.storage.Admins,
+            admins.AdminsScope,
+        ),
+        filters.DataShouldMatch(adminRoleRegex),
+    )))
+    return h
 }
 
 func (h *adminChosen) HandleCallback(c *tb.Callback) error {
@@ -136,7 +191,7 @@ func (h *adminChosen) handle(m *tb.Message, sender, admin *admins.Admin) error {
         }
         text = txt
     }
-    _, err := h.b.Edit(m, text, opts...)
+    _, err := h.tg.Edit(m, text, opts...)
     return err
 }
 
@@ -151,24 +206,13 @@ func (h *adminChosen) makeAdminBtns(admin *admins.Admin) ([][]tb.InlineButton, e
             keyboard = append(keyboard, make([]tb.InlineButton, 0, 2))
         }
         btn := tb.InlineButton{
-            Unique: adminRoleChosenEvent,
+            Unique: adminRoleChosenCallbackUnique,
             Data:   strconv.FormatInt(admin.ID, 10) + "@" + role.Name,
         }
         if admin.Role.Name == role.Name {
             btn.Text += "✅ "
         }
         btn.Text += role.Name
-        h.b.Handle(&btn, CallbackWithLog(h, WithCallbackFilters(&roleChosen{
-            b: h.b,
-            storage: &roleChosenStorage{
-                Admins: h.storage.Admins,
-                Roles:  h.storage.Roles,
-            },
-            parent: h,
-        },
-            filters.WithSender().IsAdminWithScopes(h.storage.Admins, admins.AdminsScope),
-            filters.DataShouldMatch(adminRoleRegex),
-        )))
         keyboard[i/2] = append(keyboard[i/2], btn)
     }
     return keyboard, nil
@@ -184,7 +228,7 @@ const (
 
 func (h *adminChosen) adminDescription(admin *admins.Admin) (string, error) {
     strAdminID := strconv.FormatInt(admin.ID, 10)
-    userLink, err := chattools.WithBot(h.b).UserLink(strAdminID)
+    userLink, err := chattools.WithBot(h.tg).UserLink(strAdminID)
     if err != nil {
         return "", err
     }
@@ -193,7 +237,7 @@ func (h *adminChosen) adminDescription(admin *admins.Admin) (string, error) {
 
 func (h *adminChosen) adminDescriptionWithRole(admin *admins.Admin) (string, error) {
     strAdminID := strconv.FormatInt(admin.ID, 10)
-    userLink, err := chattools.WithBot(h.b).UserLink(strAdminID)
+    userLink, err := chattools.WithBot(h.tg).UserLink(strAdminID)
     if err != nil {
         return "", err
     }
@@ -204,22 +248,36 @@ func (h *adminChosen) adminDescriptionWithRole(admin *admins.Admin) (string, err
     return fmt.Sprintf(adminWithRoleTemplate, strAdminID, userLink, role), nil
 }
 
-type roleChosenStorage struct {
+type RoleChosenStorage struct {
     Admins admins.AdminsRepo
     Roles  admins.RolesRepo
 }
 
-type roleChosen struct {
-    b       *tb.Bot
-    storage *roleChosenStorage
+type adminRoleChosen struct {
+    tg      *tb.Bot
+    storage *RoleChosenStorage
     parent  *adminChosen
+}
+
+type adminRoleChosenSettings struct {
+    Tg      *tb.Bot
+    Storage *RoleChosenStorage
+    Parent  *adminChosen
+}
+
+func newAdminRoleChosen(pref *adminRoleChosenSettings) *adminRoleChosen {
+    return &adminRoleChosen{
+        tg:      pref.Tg,
+        storage: pref.Storage,
+        parent:  pref.Parent,
+    }
 }
 
 var (
     adminRoleRegex = regexp.MustCompile(`^(?P<adminID>\w+)@(?P<roleName>\w+)$`)
 )
 
-func (h *roleChosen) HandleCallback(c *tb.Callback) error {
+func (h *adminRoleChosen) HandleCallback(c *tb.Callback) error {
     sender, err := h.storage.Admins.GetByID(context.Background(), int64(c.Sender.ID))
     if err != nil {
         return err
@@ -238,7 +296,7 @@ func (h *roleChosen) HandleCallback(c *tb.Callback) error {
         return err
     }
     strAdminID := strconv.FormatInt(admin.ID, 10)
-    adminName, err := chattools.WithBot(h.b).GetTelegramName(strAdminID)
+    adminName, err := chattools.WithBot(h.tg).GetTelegramName(strAdminID)
     if err != nil {
         return err
     }
@@ -247,7 +305,7 @@ func (h *roleChosen) HandleCallback(c *tb.Callback) error {
         return err
     }
     if admin.Role != nil && admin.Role.Name == role.Name {
-        return h.b.Respond(c, &tb.CallbackResponse{
+        return h.tg.Respond(c, &tb.CallbackResponse{
             Text: fmt.Sprintf("%s is %s already", adminName, role.Name),
         })
     }
@@ -255,7 +313,7 @@ func (h *roleChosen) HandleCallback(c *tb.Callback) error {
     if err != nil {
         return err
     }
-    if err := h.b.Respond(c, &tb.CallbackResponse{
+    if err := h.tg.Respond(c, &tb.CallbackResponse{
         Text: fmt.Sprintf("%s was assigned %s", adminName, role.Name),
     }); err != nil {
         return err

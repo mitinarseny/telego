@@ -2,8 +2,9 @@ package mongo
 
 import (
     "context"
-    "errors"
     "fmt"
+
+    "github.com/pkg/errors"
 
     "github.com/mitinarseny/telego/admins"
     log "github.com/sirupsen/logrus"
@@ -20,10 +21,17 @@ type RolesRepo struct {
     this *mongo.Collection
 }
 
-func NewRolesRepo(db *mongo.Database) *RolesRepo {
-    return &RolesRepo{
+func NewRolesRepo(db *mongo.Database) (*RolesRepo, error) {
+    r := &RolesRepo{
         this: db.Collection(rolesCollectionName),
     }
+    if _, err := r.this.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+        Keys:    bson.D{{"name", 1}},
+        Options: options.Index().SetUnique(true),
+    }); err != nil {
+        return nil, errors.Wrapf(err, "unable to create index on %s", rolesCollectionName)
+    }
+    return r, nil
 }
 
 func (r *RolesRepo) Create(ctx context.Context, roles ...*admins.Role) ([]*admins.Role, error) {
@@ -53,7 +61,7 @@ func (r *RolesRepo) CreateIfNotExists(ctx context.Context, roles ...*admins.Role
         models = append(models,
             mongo.NewUpdateOneModel().
                 SetFilter(bson.D{
-                    {"_id", role.Name},
+                    {"name", role.Name},
                 }).
                 SetUpdate(role).
                 SetUpsert(true))
@@ -108,7 +116,7 @@ func (r *RolesRepo) GetByName(ctx context.Context, name string) (*admins.Role, e
 
 func (r *RolesRepo) GetByNames(ctx context.Context, names ...string) ([]*admins.Role, error) {
     cursor, err := r.this.Find(ctx, bson.D{
-        {"_id", bson.D{
+        {"name", bson.D{
             {"$in", names},
         }},
     })
@@ -128,7 +136,7 @@ func (r *RolesRepo) GetByNames(ctx context.Context, names ...string) ([]*admins.
 
 func (r *RolesRepo) AddScopes(ctx context.Context, scopes []admins.Scope, names ...string) ([]*admins.Role, error) {
     res, err := r.this.UpdateMany(ctx, bson.D{
-        {"_id", bson.D{
+        {"name", bson.D{
             {"$in", names},
         }},
     }, bson.D{
@@ -155,7 +163,7 @@ func (r *RolesRepo) AddScopes(ctx context.Context, scopes []admins.Scope, names 
 
 func (r *RolesRepo) SetScopes(ctx context.Context, scopes []admins.Scope, names ...string) ([]*admins.Role, error) {
     res, err := r.this.UpdateMany(ctx, bson.D{
-        {"_id", bson.D{
+        {"name", bson.D{
             {"$in", names},
         }},
     }, bson.D{
@@ -180,7 +188,7 @@ func (r *RolesRepo) SetScopes(ctx context.Context, scopes []admins.Scope, names 
 
 func (r *RolesRepo) DeleteByNames(ctx context.Context, names ...string) error {
     res, err := r.this.DeleteMany(ctx, bson.D{
-        {"_id", bson.D{
+        {"name", bson.D{
             {"$in", names},
         }},
     })

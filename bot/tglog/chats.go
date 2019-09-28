@@ -16,9 +16,7 @@ const (
 )
 
 type Chat struct {
-    BaseModel `bson:",inline"`
-
-    ID        int64    `bson:"_id,omitempty"`
+    ID        int64    `bson:"id,omitempty"`
     Type      ChatType `bson:"type,omitempty"`
     Title     *string  `bson:"title,omitempty"`
     Username  *string  `bson:"username,omitempty"`

@@ -23,7 +23,7 @@ type Notifications struct {
 }
 
 type Admin struct {
-    ID            int64         `bson:"_id, omitempty"`
+    ID            int64         `bson:"id, omitempty"`
     Role          *Role         `bson:"role,omitempty"`
     Notifications *Notifications `bson:"notifications,omitempty"`
 }

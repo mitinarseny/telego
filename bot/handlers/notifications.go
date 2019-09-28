@@ -7,19 +7,30 @@ import (
     tb "gopkg.in/tucnak/telebot.v2"
 )
 
-type CustomizeNotificationsStorage struct {
+type NotificationsStorage struct {
     Admins admins.AdminsRepo
 }
 
-type CustomizeNotifications struct {
+type notifications struct {
     log.UnsafeErrorLogger
-    B       *tb.Bot
-    Storage *CustomizeNotificationsStorage
+    tg      *tb.Bot
+    storage *NotificationsStorage
 }
 
-func (h *CustomizeNotifications) HandleCallback(c *tb.Callback) error {
-    _ = h.B.Respond(c, &tb.CallbackResponse{
-        Text: "CustomizeNotifications is not implemented yet",
-    })
-    return errors.New("CustomizeNotifications is not implemented yet")
+type NotificationsSettings struct {
+    Logger  log.UnsafeInfoErrorLogger
+    Tg      *tb.Bot
+    Storage *NotificationsStorage
+}
+
+func NewNotifications(pref *NotificationsSettings) *notifications {
+    return &notifications{
+        UnsafeErrorLogger: pref.Logger,
+        tg:                pref.Tg,
+        storage:           pref.Storage,
+    }
+}
+
+func (h *notifications) HandleMsg(m *tb.Message) error {
+    return errors.New("notifications is not implemented yet")
 }

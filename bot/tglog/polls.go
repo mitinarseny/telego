@@ -1,7 +1,7 @@
 package tglog
 
 type Poll struct {
-    ID       string       `bson:"_id,omitempty"`
+    ID       string       `bson:"id,omitempty"`
     Question string       `bson:"question,omitempty"`
     Options  []PollOption `bson:"options,omitempty"`
     IsClosed bool         `bson:"is_closed,omitempty"`

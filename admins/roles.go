@@ -14,12 +14,12 @@ var SuperuserRole = NewRole(SuperUserRoleName,
 )
 
 type Role struct {
-    Name   string `bson:"_id,omitempty"`
+    Name   string `bson:"name,omitempty"`
     Scopes Scopes `bson:"scopes,omitempty"`
 }
 
 type roleBson struct {
-    Name   string  `bson:"_id,omitempty"`
+    Name   string  `bson:"name,omitempty"`
     Scopes []Scope `bson:"scopes,omitempty"`
 }
 

@@ -2,7 +2,6 @@ package mongo
 
 import (
     "context"
-    "time"
 
     "github.com/mitinarseny/telego/bot/tglog"
     "github.com/pkg/errors"
@@ -38,18 +37,21 @@ func (r *UpdatesRepo) Create(ctx context.Context, updates ...*tglog.Update) ([]*
         if chat := u.Chat(); chat != nil {
             chats = append(chats, chat)
         }
-        u.BaseModel.CreatedAt = time.Now()
         models = append(models, u)
     }
-    if _, err := r.users.CreateIfNotExist(ctx, users...); err != nil {
-        return nil, err
+    if len(users) > 0 {
+        if _, err := r.users.CreateIfNotExist(ctx, users...); err != nil {
+            return nil, errors.Wrap(err, "unable to create users from updates")
+        }
     }
-    if _, err := r.chats.CreateIfNotExist(ctx, chats...); err != nil {
-        return nil, err
+    if len(chats) > 0 {
+        if _, err := r.chats.CreateIfNotExist(ctx, chats...); err != nil {
+            return nil, errors.Wrap(err, "unable to create chats from updates")
+        }
     }
     _, err := r.this.InsertMany(ctx, models)
     if err != nil {
-        return nil, err
+        return nil, errors.Wrap(err, "unable to insert updates in collection")
     }
     return updates, nil
 }

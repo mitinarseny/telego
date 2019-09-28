@@ -2,7 +2,7 @@ package mongo
 
 import (
     "context"
-    "time"
+    "fmt"
 
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
@@ -38,10 +38,20 @@ const (
 type level string
 
 func (l *Logger) log(lvl level, args ...interface{}) error {
+    var formattedArgs []interface{}
+    for _, a := range args {
+        ca := a
+        switch at := a.(type) {
+        case error:
+            ca = at.Error()
+        case fmt.Stringer:
+            ca = at.String()
+        }
+        formattedArgs = append(formattedArgs, ca)
+    }
     _, err := l.this.InsertOne(context.Background(), bson.D{
-        {"created_at", time.Now()},
         {"level", lvl},
-        {"data", args},
+        {"data", formattedArgs},
     })
     return err
 }

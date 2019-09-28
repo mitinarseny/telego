@@ -5,7 +5,7 @@ import (
 )
 
 type InlineQuery struct {
-    ID       string    `bson:"_id,omitempty"`
+    ID       string    `bson:"id,omitempty"`
     From     User      `bson:"from,omitempty"`
     Location *Location `bson:"location,omitempty"`
     Query    string    `bson:"query,omitempty"`

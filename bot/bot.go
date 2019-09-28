@@ -18,8 +18,12 @@ import (
     tb "gopkg.in/tucnak/telebot.v2"
 )
 
+// Endpoints
 const (
-    customizeNotificationsEndpoint = "customizeNotifications"
+    // Commands
+    startCommand         = "/start"
+    adminsCommand        = "/admins"
+    notificationsCommand = "/notifications"
 )
 
 type MsgHandlerFunc func(*tb.Message) error
@@ -64,7 +68,7 @@ func New(s *Settings) (*Bot, error) {
         }, func(u *tb.Update) bool {
             go func() {
                 if err := b.updateLogger.LogUpdates(u); err != nil {
-                    b.logger.Error(err)
+                    b.logger.Error(errors.Wrap(err, "unable to log update"))
                 }
             }()
             return true
@@ -85,7 +89,7 @@ func New(s *Settings) (*Bot, error) {
         ErrorLogger: s.Logger,
         Admins:      s.Storage.Admins,
         Notifiers: map[admins.NotifierType]notify.Notifier{
-            admins.TelegramNotifier: tgnotify.NewNotifier(b.tg, customizeNotificationsEndpoint),
+            admins.TelegramNotifier: tgnotify.NewNotifier(b.tg, notificationsCommand),
         },
     }
     if err := b.setupSuperuser(s.SuperuserID); err != nil {
@@ -116,25 +120,34 @@ func (b *Bot) setupSuperuser(userID int64) error {
 }
 
 func (b *Bot) setupHandlers() {
-    b.tg.Handle("/start", handlers.MsgWithLog(b.logger, &handlers.Start{
-        B: b.tg,
-    }))
-    b.tg.Handle("/admins", handlers.MsgWithLog(b.logger, handlers.WithMsgFilters(&handlers.Admins{
-        UnsafeInfoErrorLogger: b.logger,
-        B:                     b.tg,
-        Storage: &handlers.AdminsStorage{
-            Admins: b.s.Admins,
-            Roles:  b.s.Roles,
-        },
-    }, filters.WithSender().IsAdminWithScopes(b.s.Admins, admins.AdminsReadScope))))
-    b.tg.Handle(customizeNotificationsEndpoint, handlers.CallbackWithLog(b.logger,
-        handlers.WithCallbackFilters(&handlers.CustomizeNotifications{
-            UnsafeErrorLogger: b.logger,
-            B:                 b.tg,
-            Storage: &handlers.CustomizeNotificationsStorage{
+    b.tg.Handle(startCommand, handlers.MsgWithLog(b.logger,
+        &handlers.Start{
+            B: b.tg,
+        }))
+    b.tg.Handle(adminsCommand, handlers.MsgWithLog(b.logger,
+        handlers.WithMsgFilters(
+            handlers.NewAdmins(&handlers.AdminsSettings{
+                Logger: b.logger,
+                Tg:     b.tg,
+                Storage: &handlers.AdminsStorage{
+                    Admins: b.s.Admins,
+                    Roles:  b.s.Roles,
+                },
+            }),
+            filters.WithSender().IsAdminWithScopes(b.s.Admins,
+                admins.AdminsReadScope,
+            ),
+        )))
+    b.tg.Handle(notificationsCommand, handlers.MsgWithLog(b.logger,
+        handlers.WithMsgFilters(handlers.NewNotifications(&handlers.NotificationsSettings{
+            Logger: b.logger,
+            Tg:     b.tg,
+            Storage: &handlers.NotificationsStorage{
                 Admins: b.s.Admins,
             },
-        }, filters.WithSender().IsAdmin(b.s.Admins))))
+        }),
+            filters.WithSender().IsAdmin(b.s.Admins),
+        )))
 }
 
 func (b *Bot) Start() {
@@ -146,11 +159,11 @@ func (b *Bot) Start() {
 }
 
 func (b *Bot) Stop() {
-    defer b.logger.Info("STOPPED")
     defer func() {
         if err := b.adminsNotifier.Notify(notify.StatusNotification(notify.StatusDown)); err != nil {
             b.logger.Error(err)
         }
     }()
+    defer b.logger.Info("STOPPED")
     b.tg.Stop()
 }

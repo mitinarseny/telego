@@ -7,9 +7,7 @@ import (
 )
 
 type User struct {
-    BaseModel `bson:",inline"`
-
-    ID           int64   `bson:"_id,omitempty"`
+    ID           int64   `bson:"id,omitempty"`
     IsBot        bool    `bson:"is_bot,omitempty"`
     FirstName    string  `bson:"first_name,omitempty"`
     LastName     *string `bson:"last_name,omitempty"`

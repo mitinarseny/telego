@@ -13,7 +13,7 @@ type Invoice struct {
 }
 
 type PreCheckoutQuery struct {
-    ID               string     `bson:"_id,omitempty"`
+    ID               string     `bson:"id,omitempty"`
     From             User       `bson:"from,omitempty"`
     Currency         string     `bson:"currency,omitempty"`
     TotalAmount      int        `bson:"total_amount,omitempty"`
@@ -32,7 +32,7 @@ type ShippingAddress struct {
 }
 
 type ShippingQuery struct {
-    ID              string          `bson:"_id,omitempty"`
+    ID              string          `bson:"id,omitempty"`
     From            User            `bson:"from,omitempty"`
     InvoicePayload  string          `bson:"invoice_payload,omitempty"`
     ShippingAddress ShippingAddress `bson:"shipping_address,omitempty"`

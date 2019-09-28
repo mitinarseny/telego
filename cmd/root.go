@@ -43,10 +43,6 @@ var logger = logrus.New()
 
 var rootCmd = &cobra.Command{
     Run: func(cmd *cobra.Command, args []string) {
-        if viper.GetBool(debugKey) {
-            logger.SetLevel(logrus.DebugLevel)
-            logger.SetReportCaller(true)
-        }
         if err := checkMandatoryParams(); err != nil {
             logger.Fatal(err)
         }
@@ -57,7 +53,6 @@ var rootCmd = &cobra.Command{
 }
 
 func start() error {
-    logger := logrus.New()
     mongoOpts := options.Client().SetAppName("bot").SetAuth(options.Credential{
         Username: viper.GetString(dbUserKey),
         Password: viper.GetString(dbPasswordKey),
@@ -70,11 +65,7 @@ func start() error {
 
     mongoClient, err := mongoDriver.Connect(mongoConnectCtx, mongoOpts)
     if err != nil {
-        logger.WithFields(logrus.Fields{
-            "context": "MongoDB",
-            "action":  "CONNECT",
-        }).Error(err)
-        return err
+        return errors.Wrap(err, "unable to connect to mongo")
     }
 
     defer func() {
@@ -90,11 +81,7 @@ func start() error {
     defer dropMongoPing()
 
     if err := mongoClient.Ping(mongoPingCtx, readpref.Primary()); err != nil {
-        logger.WithFields(logrus.Fields{
-            "context": "MongoDB",
-            "action":  "PING",
-        }).Error(err)
-        return err
+        return errors.Wrap(err, "error while pining mongo")
     }
     logger.WithFields(logrus.Fields{
         "context": "MongoDB",
@@ -102,7 +89,10 @@ func start() error {
     }).Info()
 
     botMongoDB := mongoClient.Database(viper.GetString(dbNameKey))
-    mongos := getFromMongoDB(botMongoDB)
+    mongos, err := createMongoRepos(botMongoDB)
+    if err != nil {
+        return errors.Wrap(err, "unable to create mongo repositories")
+    }
     botStdInfoErrorLogger := stderr.NewErrorLogger(logger)
     botPrefs := bot.Settings{
         Token:        viper.GetString(botTokenKey),
@@ -124,11 +114,7 @@ func start() error {
 
     b, err := bot.New(&botPrefs)
     if err != nil {
-        logger.WithFields(logrus.Fields{
-            "context": "BOT",
-            "action":  "CREATE",
-        }).Error(err)
-        return err
+        return errors.Wrap(err, "unable to create bot")
     }
 
     go b.Start()
@@ -155,12 +141,27 @@ type Repositories struct {
     InfoErrorLogs log.InfoErrorLogger
 }
 
-func getFromMongoDB(db *mongoDriver.Database) *Repositories {
-    botRoles := mongoadmin.NewRolesRepo(db)
-    botAdmins := mongoadmin.NewAdminsRepo(db, botRoles)
+func createMongoRepos(db *mongoDriver.Database) (*Repositories, error) {
+    botRoles, err := mongoadmin.NewRolesRepo(db)
+    if err != nil {
+        return nil, errors.Wrap(err, "unable to create mongoadmin.RolesRepo")
+    }
 
-    botTgUsers := mongotglog.NewUsersRepo(db)
-    botTgChats := mongotglog.NewChatsRepo(db)
+    botAdmins, err := mongoadmin.NewAdminsRepo(db, botRoles)
+    if err != nil {
+        return nil, errors.Wrap(err, "unable to create mongoadmin.AdminsRepo")
+    }
+
+    botTgUsers, err := mongotglog.NewUsersRepo(db)
+    if err != nil {
+        return nil, errors.Wrap(err, "unable to create mongotglog.UsersRepo")
+    }
+
+    botTgChats, err := mongotglog.NewChatsRepo(db)
+    if err != nil {
+        return nil, errors.Wrap(err, "unable to create mongotglog.ChatsRepo")
+    }
+
     botTgUpdates := mongotglog.NewUpdatesRepo(db, botTgUsers, botTgChats)
 
     botDBInfoErrorLogger := mongolog.NewErrorLogger(db)
@@ -171,7 +172,7 @@ func getFromMongoDB(db *mongoDriver.Database) *Repositories {
         TgChats:       botTgChats,
         TgUpdates:     botTgUpdates,
         InfoErrorLogs: botDBInfoErrorLogger,
-    }
+    }, nil
 }
 
 func checkMandatoryParams() error {
@@ -208,6 +209,11 @@ func initConfig() {
     viper.SetEnvPrefix("TELEGO")
     viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
     viper.AutomaticEnv()
+
+    if viper.GetBool(debugKey) {
+        logger.SetLevel(logrus.DebugLevel)
+        logger.SetReportCaller(true)
+    }
 }
 
 func init() {
